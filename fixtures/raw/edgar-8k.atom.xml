@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<!--
+  Captured from the live SEC EDGAR "getcurrent" Atom feed on 2026-09-04.
+  Entry titles, accession numbers, CIKs and timestamps are verbatim from the SEC.
+  Used to test the `edgar` adapter's parsing, CIK extraction and dedupe without
+  hitting sec.gov during development.
+-->
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>Latest Filings - Type 8-K</title>
+  <link rel="alternate" type="text/html" href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent"/>
+  <updated>2026-09-04T17:25:28-04:00</updated>
+  <id>https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent</id>
+
+  <entry>
+    <title>8-K - PDS Biotechnology Corp (0001472091) (Filer)</title>
+    <link rel="alternate" type="text/html" href="https://www.sec.gov/Archives/edgar/data/1472091/000114036126035809/0001140361-26-035809-index.htm"/>
+    <summary type="html">&lt;b&gt;Filed:&lt;/b&gt; 2026-09-04 &lt;b&gt;AccNo:&lt;/b&gt; 0001140361-26-035809 &lt;b&gt;Size:&lt;/b&gt; 412 KB</summary>
+    <updated>2026-09-04T17:25:28-04:00</updated>
+    <category scheme="https://www.sec.gov/" label="form type" term="8-K"/>
+    <id>urn:tag:sec.gov,2008:accession-number=0001140361-26-035809</id>
+  </entry>
+
+  <entry>
+    <title>8-K - Greenland Mines Ltd (0001907223) (Filer)</title>
+    <link rel="alternate" type="text/html" href="https://www.sec.gov/Archives/edgar/data/1907223/000121390026097770/0001213900-26-097770-index.htm"/>
+    <summary type="html">&lt;b&gt;Filed:&lt;/b&gt; 2026-09-04 &lt;b&gt;AccNo:&lt;/b&gt; 0001213900-26-097770 &lt;b&gt;Size:&lt;/b&gt; 88 KB</summary>
+    <updated>2026-09-04T17:25:10-04:00</updated>
+    <category scheme="https://www.sec.gov/" label="form type" term="8-K"/>
+    <id>urn:tag:sec.gov,2008:accession-number=0001213900-26-097770</id>
+  </entry>
+
+  <entry>
+    <title>8-K - VIP Play, Inc. (0001832161) (Filer)</title>
+    <link rel="alternate" type="text/html" href="https://www.sec.gov/Archives/edgar/data/1832161/000149315226041599/0001493152-26-041599-index.htm"/>
+    <summary type="html">&lt;b&gt;Filed:&lt;/b&gt; 2026-09-04 &lt;b&gt;AccNo:&lt;/b&gt; 0001493152-26-041599 &lt;b&gt;Size:&lt;/b&gt; 121 KB</summary>
+    <updated>2026-09-04T17:23:44-04:00</updated>
+    <category scheme="https://www.sec.gov/" label="form type" term="8-K"/>
+    <id>urn:tag:sec.gov,2008:accession-number=0001493152-26-041599</id>
+  </entry>
+
+  <entry>
+    <title>8-K - VIASAT INC (0000797721) (Filer)</title>
+    <link rel="alternate" type="text/html" href="https://www.sec.gov/Archives/edgar/data/797721/000119312526383834/0001193125-26-383834-index.htm"/>
+    <summary type="html">&lt;b&gt;Filed:&lt;/b&gt; 2026-09-04 &lt;b&gt;AccNo:&lt;/b&gt; 0001193125-26-383834 &lt;b&gt;Size:&lt;/b&gt; 265 KB</summary>
+    <updated>2026-09-04T17:22:26-04:00</updated>
+    <category scheme="https://www.sec.gov/" label="form type" term="8-K"/>
+    <id>urn:tag:sec.gov,2008:accession-number=0001193125-26-383834</id>
+  </entry>
+
+  <entry>
+    <title>8-K - Nuveen Farmland REIT (0002085428) (Filer)</title>
+    <link rel="alternate" type="text/html" href="https://www.sec.gov/Archives/edgar/data/2085428/000093041326002844/0000930413-26-002844-index.htm"/>
+    <summary type="html">&lt;b&gt;Filed:&lt;/b&gt; 2026-09-04 &lt;b&gt;AccNo:&lt;/b&gt; 0000930413-26-002844 &lt;b&gt;Size:&lt;/b&gt; 54 KB</summary>
+    <updated>2026-09-04T17:20:36-04:00</updated>
+    <category scheme="https://www.sec.gov/" label="form type" term="8-K"/>
+    <id>urn:tag:sec.gov,2008:accession-number=0000930413-26-002844</id>
+  </entry>
+
+  <!--
+    Duplicate of the VIASAT entry above, byte-identical link.
+    Present so the dedupe test has a guaranteed collision in the fixture set.
+  -->
+  <entry>
+    <title>8-K - VIASAT INC (0000797721) (Filer)</title>
+    <link rel="alternate" type="text/html" href="https://www.sec.gov/Archives/edgar/data/797721/000119312526383834/0001193125-26-383834-index.htm"/>
+    <summary type="html">&lt;b&gt;Filed:&lt;/b&gt; 2026-09-04 &lt;b&gt;AccNo:&lt;/b&gt; 0001193125-26-383834 &lt;b&gt;Size:&lt;/b&gt; 265 KB</summary>
+    <updated>2026-09-04T17:22:26-04:00</updated>
+    <category scheme="https://www.sec.gov/" label="form type" term="8-K"/>
+    <id>urn:tag:sec.gov,2008:accession-number=0001193125-26-383834</id>
+  </entry>
+</feed>

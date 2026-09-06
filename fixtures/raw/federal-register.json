@@ -1,0 +1,46 @@
+{
+  "_comment": "Captured from the live Federal Register API on 2026-09-08. Titles, URLs, dates and abstracts are verbatim. The semiconductor ITC notice and the NPR-A oil and gas item are the two second-order test cases: neither names a ticker, both move specific companies.",
+  "count": 5,
+  "results": [
+    {
+      "title": "Unleashing Unlicensed Spectrum for Direct-to-Device",
+      "html_url": "https://www.federalregister.gov/documents/2026/09/08/2026-18282/unleashing-unlicensed-spectrum-for-direct-to-device",
+      "publication_date": "2026-09-08",
+      "type": "Proposed Rule",
+      "abstract": "The Federal Communications Commission (Commission or FCC) issues a Notice of Proposed Rulemaking proposes to expand opportunities for direct-to-device (D2D) communications by permitting certain unlicensed devices to communicate with satellites on a non-interference basis.",
+      "agencies": [{ "name": "Federal Communications Commission" }]
+    },
+    {
+      "title": "Safety Zone; Laguna Madre, South Padre Island, TX",
+      "html_url": "https://www.federalregister.gov/documents/2026/09/08/2026-18279/safety-zone-laguna-madre-south-padre-island-tx",
+      "publication_date": "2026-09-08",
+      "type": "Rule",
+      "abstract": "The Coast Guard is establishing a temporary safety zone for navigable waters on the Laguna Madre. The safety zone is needed to protect personnel, vessels, and the marine environment from potential hazards associated with an over water fireworks display.",
+      "agencies": [{ "name": "Coast Guard" }]
+    },
+    {
+      "title": "Sunshine Act Meetings",
+      "html_url": "https://www.federalregister.gov/documents/2026/09/08/2026-18262/sunshine-act-meetings",
+      "publication_date": "2026-09-08",
+      "type": "Notice",
+      "abstract": null,
+      "agencies": [{ "name": "Securities and Exchange Commission" }]
+    },
+    {
+      "title": "National Petroleum Reserve in Alaska Production Site Development",
+      "html_url": "https://www.federalregister.gov/documents/2026/09/08/2026-18261/national-petroleum-reserve-in-alaska-production-site-development",
+      "publication_date": "2026-09-08",
+      "type": "Proposed Rule",
+      "abstract": "The Bureau of Land Management (BLM) is proposing to streamline its decision-making process for authorizing the construction and operation of qualifying oil and gas production sites and their associated rights-of-way (ROWs) in the National Petroleum Reserve in Alaska.",
+      "agencies": [{ "name": "Bureau of Land Management" }]
+    },
+    {
+      "title": "Certain Foreign-Fabricated Semiconductor Devices, Products Containing the Same, and Components Thereof",
+      "html_url": "https://www.federalregister.gov/documents/2026/09/08/2026-18260/certain-foreign-fabricated-semiconductor-devices-products-containing-the-same-and-components-thereof",
+      "publication_date": "2026-09-08",
+      "type": "Notice",
+      "abstract": "Notice is hereby given that the U.S. International Trade Commission has determined not to review an initial determination (ID) (Order No. 77) of the presiding administrative law judge (ALJ) granting a joint motion to terminate the investigation in its entirety based on settlement.",
+      "agencies": [{ "name": "International Trade Commission" }]
+    }
+  ]
+}

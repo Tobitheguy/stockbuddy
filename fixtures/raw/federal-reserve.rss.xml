@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Captured from https://www.federalreserve.gov/feeds/press_all.xml on 2026-09-06.
+  Titles, links and pubDates are verbatim.
+
+  Most Fed press releases are routine enforcement and bank-approval notices that
+  should score near zero. They are in the fixture set on purpose: the scorer has
+  to be able to say "this is not tradable" as reliably as it says the opposite.
+-->
+<rss version="2.0">
+  <channel>
+    <title>FRB: Press Releases</title>
+    <link>https://www.federalreserve.gov/newsevents/pressreleases.htm</link>
+    <description>Board of Governors of the Federal Reserve System press releases</description>
+
+    <item>
+      <title>Federal Reserve Board announces termination of enforcement actions with United Texas Bank</title>
+      <link>https://www.federalreserve.gov/newsevents/pressreleases/enforcement20260904a.htm</link>
+      <description>The Federal Reserve Board on Friday announced the termination of enforcement actions with United Texas Bank, Dallas, Texas.</description>
+      <pubDate>Fri, 4 Sep 2026 15:00:00 GMT</pubDate>
+      <guid>https://www.federalreserve.gov/newsevents/pressreleases/enforcement20260904a.htm</guid>
+    </item>
+
+    <item>
+      <title>Federal Reserve Board issues enforcement action with former employee of Banco Popular de Puerto Rico</title>
+      <link>https://www.federalreserve.gov/newsevents/pressreleases/enforcement20260827a.htm</link>
+      <description>The Federal Reserve Board on Thursday issued an enforcement action with a former employee of Banco Popular de Puerto Rico.</description>
+      <pubDate>Thu, 27 Aug 2026 15:00:00 GMT</pubDate>
+      <guid>https://www.federalreserve.gov/newsevents/pressreleases/enforcement20260827a.htm</guid>
+    </item>
+
+    <item>
+      <title>Minutes of the Board's discount rate meetings on July 20 and July 29, 2026</title>
+      <link>https://www.federalreserve.gov/newsevents/pressreleases/monetary20260825a.htm</link>
+      <description>The Federal Reserve Board on Tuesday released the minutes of its discount rate meetings from July 20 through July 29, 2026.</description>
+      <pubDate>Tue, 25 Aug 2026 18:00:00 GMT</pubDate>
+      <guid>https://www.federalreserve.gov/newsevents/pressreleases/monetary20260825a.htm</guid>
+    </item>
+
+    <item>
+      <title>Federal Reserve Board announces approval of application by National Westminster Bank Plc</title>
+      <link>https://www.federalreserve.gov/newsevents/pressreleases/orders20260820a.htm</link>
+      <description>The Federal Reserve Board on Thursday announced its approval of the application by National Westminster Bank Plc.</description>
+      <pubDate>Thu, 20 Aug 2026 20:00:00 GMT</pubDate>
+      <guid>https://www.federalreserve.gov/newsevents/pressreleases/orders20260820a.htm</guid>
+    </item>
+
+    <item>
+      <title>Federal Reserve Board issues enforcement action with SouthPoint Bancshares, Inc. and announces termination of a previous action</title>
+      <link>https://www.federalreserve.gov/newsevents/pressreleases/enforcement20260820b.htm</link>
+      <description>The Federal Reserve Board on Thursday issued an enforcement action with SouthPoint Bancshares, Inc., and announced the termination of a previously announced action.</description>
+      <pubDate>Thu, 20 Aug 2026 15:00:00 GMT</pubDate>
+      <guid>https://www.federalreserve.gov/newsevents/pressreleases/enforcement20260820b.htm</guid>
+    </item>
+  </channel>
+</rss>

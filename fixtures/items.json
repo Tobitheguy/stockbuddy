@@ -1,0 +1,265 @@
+{
+  "_comment": "Normalized ingestion items for developing and testing Steps 3-5 without network access. Items 1-11 are real, captured verbatim from live feeds on 2026-09-04/06/08 (see fixtures/raw/ for the source payloads). Items 12-20 are authored test cases covering event types and second-order reasoning the real capture did not happen to contain; they are marked synthetic: true. Where an item carries an `expected` block it doubles as an eval assertion for the scorer - see docs/evals.md.",
+  "items": [
+    {
+      "id": "fx-001",
+      "source": "SEC EDGAR 8-K",
+      "canonicalUrl": "https://www.sec.gov/Archives/edgar/data/797721/000119312526383834/0001193125-26-383834-index.htm",
+      "title": "8-K - VIASAT INC (0000797721) (Filer)",
+      "summary": "Filed: 2026-09-04 AccNo: 0001193125-26-383834 Size: 265 KB",
+      "publishedAt": "2026-09-04T21:22:26Z",
+      "synthetic": false
+    },
+    {
+      "id": "fx-002",
+      "source": "SEC EDGAR 8-K",
+      "canonicalUrl": "https://www.sec.gov/Archives/edgar/data/797721/000119312526383834/0001193125-26-383834-index.htm",
+      "title": "8-K - VIASAT INC (0000797721) (Filer)",
+      "summary": "Duplicate of fx-001, byte-identical canonical URL. Running the scanner twice must not produce two rows.",
+      "publishedAt": "2026-09-04T21:22:26Z",
+      "synthetic": false,
+      "expected": { "dedupeAgainst": "fx-001" }
+    },
+    {
+      "id": "fx-003",
+      "source": "SEC EDGAR 8-K",
+      "canonicalUrl": "https://www.sec.gov/Archives/edgar/data/1472091/000114036126035809/0001140361-26-035809-index.htm",
+      "title": "8-K - PDS Biotechnology Corp (0001472091) (Filer)",
+      "summary": "Filed: 2026-09-04 AccNo: 0001140361-26-035809 Size: 412 KB",
+      "publishedAt": "2026-09-04T21:25:28Z",
+      "synthetic": false
+    },
+    {
+      "id": "fx-004",
+      "source": "SEC EDGAR 8-K",
+      "canonicalUrl": "https://www.sec.gov/Archives/edgar/data/2085428/000093041326002844/0000930413-26-002844-index.htm",
+      "title": "8-K - Nuveen Farmland REIT (0002085428) (Filer)",
+      "summary": "Filed: 2026-09-04 AccNo: 0000930413-26-002844 Size: 54 KB",
+      "publishedAt": "2026-09-04T21:20:36Z",
+      "synthetic": false,
+      "expected": {
+        "note": "Non-traded REIT. Should triage out or produce a very low score - not every filing is a signal."
+      }
+    },
+    {
+      "id": "fx-005",
+      "source": "GlobeNewswire - Public Companies",
+      "canonicalUrl": "https://www.globenewswire.com/news-release/2026/09/06/3356903/0/en/zhihu-inc-announces-proposed-subscription-in-ai-focused-investment-fund.html",
+      "title": "Zhihu Inc. Announces Proposed Subscription in AI-Focused Investment Fund",
+      "summary": "Zhihu Inc. (NYSE: ZH) announced today that it has entered into a subscription agreement to invest in an artificial-intelligence-focused investment fund. The proposed subscription is subject to customary closing conditions.",
+      "publishedAt": "2026-09-06T11:32:00Z",
+      "synthetic": false,
+      "expected": { "symbols": ["ZH"], "eventType": "capital_raise" }
+    },
+    {
+      "id": "fx-006",
+      "source": "GlobeNewswire - Public Companies",
+      "canonicalUrl": "https://www.globenewswire.com/news-release/2026/09/06/3356899/34323/en/roivant-to-present-topline-results-from-the-phase-2-phocus-study-of-mosliciguat-in-patients-with-pulmonary-hypertension-associated-with-interstitial-lung-disease-ph-ild-at-the-ers-.html",
+      "title": "Roivant to Present Topline Results from the Phase 2 PHocus Study of Mosliciguat in Patients with Pulmonary Hypertension Associated with Interstitial Lung Disease (PH-ILD) at the ERS Congress",
+      "summary": "Roivant Sciences (NASDAQ: ROIV) will present topline results from the Phase 2 PHocus study of mosliciguat in patients with pulmonary hypertension associated with interstitial lung disease at the European Respiratory Society Congress.",
+      "publishedAt": "2026-09-06T05:00:00Z",
+      "synthetic": false,
+      "expected": {
+        "symbols": ["ROIV"],
+        "note": "An announcement that results WILL be presented is not the result itself. Direction should be neutral and magnitude low - this catches a scorer that reacts to biotech keywords rather than content."
+      }
+    },
+    {
+      "id": "fx-007",
+      "source": "GlobeNewswire - Public Companies",
+      "canonicalUrl": "https://www.globenewswire.com/news-release/2026/09/05/3356889/0/en/verizon-waives-charges-for-hurricane-lowell-prepares-network-in-hawai-i.html",
+      "title": "Verizon Waives Charges for Hurricane Lowell, Prepares Network in Hawai'i",
+      "summary": "Verizon (NYSE: VZ) is waiving call, text and data charges for customers in affected areas of Hawai'i and has pre-positioned portable network assets ahead of Hurricane Lowell.",
+      "publishedAt": "2026-09-05T21:29:00Z",
+      "synthetic": false,
+      "expected": {
+        "symbols": ["VZ"],
+        "direction": "neutral",
+        "note": "Mentions a large-cap ticker but is immaterial to the stock. Must not generate a tradable signal."
+      }
+    },
+    {
+      "id": "fx-008",
+      "source": "GlobeNewswire - Public Companies",
+      "canonicalUrl": "https://www.globenewswire.com/news-release/2026/09/06/3356922/0/da/ledende-medarbejder-transaktion.html",
+      "title": "Ledende medarbejder transaktion",
+      "summary": "Meddelelse om ledende medarbejderes transaktioner med selskabets aktier.",
+      "publishedAt": "2026-09-06T19:08:00Z",
+      "synthetic": false,
+      "expected": {
+        "note": "Danish-language insider notice from a non-US-listed issuer. Stage A triage must drop this before it reaches the expensive scorer."
+      }
+    },
+    {
+      "id": "fx-009",
+      "source": "GlobeNewswire - Public Companies",
+      "canonicalUrl": "https://www.globenewswire.com/news-release/2026/09/06/3356924/0/en/kaldvik-as-kldvk-jellyfish-event-in-rey%C3%B0arfj%C3%B6r%C3%B0ur.html",
+      "title": "KALDVIK AS (KLDVK): Jellyfish event in Reyðarfjörður",
+      "summary": "Kaldvik AS reports a jellyfish event affecting sea pens in Reyðarfjörður. The company is assessing biological impact and expects to provide an updated harvest volume guidance.",
+      "publishedAt": "2026-09-06T19:52:00Z",
+      "synthetic": false,
+      "expected": {
+        "note": "Oslo-listed, not US-listed. Genuinely material news for the issuer, but out of universe - triage must drop it on exchange, not on materiality."
+      }
+    },
+    {
+      "id": "fx-010",
+      "source": "Federal Register",
+      "canonicalUrl": "https://www.federalregister.gov/documents/2026/09/08/2026-18261/national-petroleum-reserve-in-alaska-production-site-development",
+      "title": "National Petroleum Reserve in Alaska Production Site Development",
+      "summary": "The Bureau of Land Management (BLM) is proposing to streamline its decision-making process for authorizing the construction and operation of qualifying oil and gas production sites and their associated rights-of-way (ROWs) in the National Petroleum Reserve in Alaska.",
+      "publishedAt": "2026-09-08T00:00:00Z",
+      "synthetic": false,
+      "expected": {
+        "eventType": "regulatory_policy",
+        "direction": "bullish",
+        "note": "Second-order: names no company. Should map to Alaska North Slope operators and oilfield services as a sector-level signal."
+      }
+    },
+    {
+      "id": "fx-011",
+      "source": "Federal Reserve - Press Releases",
+      "canonicalUrl": "https://www.federalreserve.gov/newsevents/pressreleases/enforcement20260904a.htm",
+      "title": "Federal Reserve Board announces termination of enforcement actions with United Texas Bank",
+      "summary": "The Federal Reserve Board on Friday announced the termination of enforcement actions with United Texas Bank, Dallas, Texas.",
+      "publishedAt": "2026-09-04T15:00:00Z",
+      "synthetic": false,
+      "expected": {
+        "note": "Routine, private bank, immaterial. Should score near zero."
+      }
+    },
+
+    {
+      "id": "fx-012",
+      "source": "GlobeNewswire - Public Companies",
+      "canonicalUrl": "https://example-fixtures.invalid/contract-win-nuclear-services",
+      "title": "BWX Technologies Awarded $2.6 Billion U.S. Navy Contract for Naval Nuclear Reactor Components",
+      "summary": "BWX Technologies, Inc. (NYSE: BWXT) announced today that it has been awarded a contract valued at approximately $2.6 billion by the U.S. Naval Nuclear Propulsion Program to manufacture nuclear reactor components. Work will be performed through 2032. The award represents the largest single contract in the company's history and is incremental to previously issued guidance.",
+      "publishedAt": "2026-09-06T13:00:00Z",
+      "synthetic": true,
+      "expected": {
+        "symbols": ["BWXT"],
+        "eventType": "contract_win",
+        "direction": "bullish",
+        "magnitudeMin": 4,
+        "note": "PRIMARY INJECTION TEST (Verification section of the build plan). A fixture press release about a contract win for a known ticker must produce a correctly-tickered, correctly-directioned signal within one cycle."
+      }
+    },
+    {
+      "id": "fx-013",
+      "source": "Federal Register",
+      "canonicalUrl": "https://example-fixtures.invalid/tariff-steel-section-232",
+      "title": "Adjusting Imports of Steel Into the United States",
+      "summary": "The President has determined to increase the ad valorem tariff on imports of certain steel mill products from 25 percent to 50 percent, effective 30 days from publication. The adjustment applies to hot-rolled and cold-rolled flat products from all countries not covered by existing quota arrangements.",
+      "publishedAt": "2026-09-06T00:00:00Z",
+      "synthetic": true,
+      "expected": {
+        "eventType": "regulatory_policy",
+        "note": "SECOND-ORDER TEST. Names no company. Correct output is a split: bullish on domestic producers (NUE, STLD, CLF, X) who gain a price umbrella, bearish on steel-consuming manufacturers (appliance, auto, homebuilders) who eat the input cost. A scorer that only returns one side of this has not understood it."
+      }
+    },
+    {
+      "id": "fx-014",
+      "source": "GlobeNewswire - Public Companies",
+      "canonicalUrl": "https://example-fixtures.invalid/datacenter-buildout-award",
+      "title": "Vertiv Selected as Primary Thermal Management Supplier for 1.2 GW Data Center Campus",
+      "summary": "Vertiv Holdings Co (NYSE: VRT) announced it has been selected to supply liquid cooling and power distribution systems for a 1.2 gigawatt hyperscale data center campus in central Ohio. Initial deliveries begin in Q1 2027.",
+      "publishedAt": "2026-09-06T12:15:00Z",
+      "synthetic": true,
+      "expected": {
+        "symbols": ["VRT"],
+        "eventType": "contract_win",
+        "direction": "bullish",
+        "note": "SECOND-ORDER TEST. First-order is VRT. Second-order is the regional utility that now serves 1.2 GW of new load, and the electrical equipment suppliers (transformers, switchgear). A good rationale names at least one non-obvious beneficiary."
+      }
+    },
+    {
+      "id": "fx-015",
+      "source": "SEC EDGAR 8-K",
+      "canonicalUrl": "https://example-fixtures.invalid/guidance-raise-8k",
+      "title": "8-K - Item 2.02 Results of Operations - Raises Full-Year Revenue Guidance",
+      "summary": "The registrant announced Q3 revenue of $4.82 billion versus consensus of $4.51 billion, and raised full-year revenue guidance to a range of $19.2 billion to $19.4 billion from a prior range of $18.1 billion to $18.5 billion. Gross margin expanded 340 basis points year over year.",
+      "publishedAt": "2026-09-06T20:05:00Z",
+      "synthetic": true,
+      "expected": {
+        "eventType": "guidance",
+        "direction": "bullish",
+        "magnitudeMin": 4,
+        "note": "A guidance raise of this size is the textbook high-magnitude case."
+      }
+    },
+    {
+      "id": "fx-016",
+      "source": "GlobeNewswire - Public Companies",
+      "canonicalUrl": "https://example-fixtures.invalid/fda-crl",
+      "title": "Company Receives Complete Response Letter from FDA for Lead Candidate",
+      "summary": "The company announced today that it has received a Complete Response Letter from the U.S. Food and Drug Administration regarding its New Drug Application. The FDA cited deficiencies in the chemistry, manufacturing and controls section and did not request additional clinical trials.",
+      "publishedAt": "2026-09-06T11:00:00Z",
+      "synthetic": true,
+      "expected": {
+        "eventType": "regulatory_policy",
+        "direction": "bearish",
+        "magnitudeMin": 4,
+        "note": "SECOND-ORDER TEST. Bearish first-order. The non-obvious read is bullish for the closest competitor whose rival therapy just lost its main threat."
+      }
+    },
+    {
+      "id": "fx-017",
+      "source": "GlobeNewswire - M&A",
+      "canonicalUrl": "https://example-fixtures.invalid/all-cash-acquisition",
+      "title": "Acquisition Announced at $89.00 Per Share in Cash, a 41% Premium to Prior Close",
+      "summary": "The two companies announced a definitive agreement under which the acquirer will purchase all outstanding shares for $89.00 per share in cash, representing a 41 percent premium to the target's closing price. The transaction is expected to close in the first half of 2027 subject to regulatory approval and is not subject to a financing condition.",
+      "publishedAt": "2026-09-06T10:30:00Z",
+      "synthetic": true,
+      "expected": {
+        "eventType": "M&A",
+        "direction": "bullish",
+        "magnitudeMin": 4,
+        "horizon": "months",
+        "note": "Target is bullish and largely already priced. The tradable read is often the acquirer (usually bearish on dilution) and unacquired sector peers that just got re-rated."
+      }
+    },
+    {
+      "id": "fx-018",
+      "source": "SEC EDGAR Form 4",
+      "canonicalUrl": "https://example-fixtures.invalid/form4-routine-grant",
+      "title": "4 - Officer routine equity award and same-day sale to cover withholding",
+      "summary": "Reporting person acquired 4,120 shares pursuant to a previously scheduled restricted stock unit vesting and disposed of 1,806 shares to satisfy tax withholding obligations. Transaction executed under a Rule 10b5-1 trading plan adopted on 2025-11-14.",
+      "publishedAt": "2026-09-06T22:10:00Z",
+      "synthetic": true,
+      "expected": {
+        "eventType": "insider_trade",
+        "direction": "neutral",
+        "note": "Routine 10b5-1 vesting is noise. Form 4 volume is high, so a scorer that treats every insider filing as a signal will bury the feed. This is the primary false-positive guard for that source."
+      }
+    },
+    {
+      "id": "fx-019",
+      "source": "SEC EDGAR Form 4",
+      "canonicalUrl": "https://example-fixtures.invalid/form4-cluster-buy",
+      "title": "4 - Chief Executive Officer open-market purchase, $4.1 million",
+      "summary": "Reporting person acquired 210,000 shares in an open-market purchase at a weighted average price of $19.52, increasing beneficial ownership by 34 percent. No trading plan is referenced. This is the third open-market purchase by a Section 16 officer in eleven days.",
+      "publishedAt": "2026-09-06T22:40:00Z",
+      "synthetic": true,
+      "expected": {
+        "eventType": "insider_trade",
+        "direction": "bullish",
+        "magnitudeMin": 3,
+        "note": "Contrast with fx-018. An unplanned open-market cluster buy is one of the few genuinely informative insider patterns. The scorer must separate this from routine vesting."
+      }
+    },
+    {
+      "id": "fx-020",
+      "source": "Finnhub - Market News",
+      "canonicalUrl": "https://example-fixtures.invalid/rumor-unnamed-sources",
+      "title": "Report: Chipmaker Weighing Sale of Foundry Unit, According to People Familiar",
+      "summary": "The company is exploring a sale or spinoff of its contract manufacturing division, according to people familiar with the matter who asked not to be identified because the deliberations are private. No final decision has been made and the company may opt to retain the unit. A spokesperson declined to comment.",
+      "publishedAt": "2026-09-06T18:45:00Z",
+      "synthetic": true,
+      "expected": {
+        "confidenceMax": 0.6,
+        "note": "Unnamed-sources rumor with an explicit may-not-happen hedge. Should score with visibly lower confidence than a filed 8-K describing a completed transaction. Tests that confidence tracks source quality rather than headline drama."
+      }
+    }
+  ]
+}

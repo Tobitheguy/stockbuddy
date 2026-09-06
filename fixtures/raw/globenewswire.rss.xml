@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Captured from the live GlobeNewswire "News about Public Companies" RSS feed
+  on 2026-09-06. Titles, links and pubDates of the first six items are verbatim.
+
+  Note the mix: two Danish-language insider-transaction notices and a Norwegian
+  aquaculture item sit alongside US-listed company news. This is what the real
+  feed looks like, and it is exactly what Stage A triage has to filter out.
+-->
+<rss version="2.0">
+  <channel>
+    <title>GlobeNewswire - News about Public Companies</title>
+    <link>https://www.globenewswire.com/</link>
+    <description>Press releases from publicly traded companies</description>
+
+    <item>
+      <title>KALDVIK AS (KLDVK): Jellyfish event in Reyðarfjörður</title>
+      <link>https://www.globenewswire.com/news-release/2026/09/06/3356924/0/en/kaldvik-as-kldvk-jellyfish-event-in-rey%C3%B0arfj%C3%B6r%C3%B0ur.html</link>
+      <description>Kaldvik AS reports a jellyfish event affecting sea pens in Reyðarfjörður. The company is assessing biological impact and expects to provide an updated harvest volume guidance.</description>
+      <pubDate>Sun, 06 Sep 2026 19:52:00 GMT</pubDate>
+      <guid>https://www.globenewswire.com/news-release/2026/09/06/3356924</guid>
+    </item>
+
+    <item>
+      <title>Korrektion - Ledende medarbejder transaktion</title>
+      <link>https://www.globenewswire.com/news-release/2026/09/06/3356923/0/da/korrektion-ledende-medarbejder-transaktion.html</link>
+      <description>Korrektion til tidligere meddelelse om ledende medarbejderes transaktioner med selskabets aktier.</description>
+      <pubDate>Sun, 06 Sep 2026 19:19:00 GMT</pubDate>
+      <guid>https://www.globenewswire.com/news-release/2026/09/06/3356923</guid>
+    </item>
+
+    <item>
+      <title>Ledende medarbejder transaktion</title>
+      <link>https://www.globenewswire.com/news-release/2026/09/06/3356922/0/da/ledende-medarbejder-transaktion.html</link>
+      <description>Meddelelse om ledende medarbejderes transaktioner med selskabets aktier.</description>
+      <pubDate>Sun, 06 Sep 2026 19:08:00 GMT</pubDate>
+      <guid>https://www.globenewswire.com/news-release/2026/09/06/3356922</guid>
+    </item>
+
+    <item>
+      <title>Zhihu Inc. Announces Proposed Subscription in AI-Focused Investment Fund</title>
+      <link>https://www.globenewswire.com/news-release/2026/09/06/3356903/0/en/zhihu-inc-announces-proposed-subscription-in-ai-focused-investment-fund.html</link>
+      <description>Zhihu Inc. (NYSE: ZH) announced today that it has entered into a subscription agreement to invest in an artificial-intelligence-focused investment fund. The proposed subscription is subject to customary closing conditions.</description>
+      <pubDate>Sun, 06 Sep 2026 11:32:00 GMT</pubDate>
+      <guid>https://www.globenewswire.com/news-release/2026/09/06/3356903</guid>
+    </item>
+
+    <item>
+      <title>Roivant to Present Topline Results from the Phase 2 PHocus Study of Mosliciguat in Patients with Pulmonary Hypertension Associated with Interstitial Lung Disease (PH-ILD) at the ERS Congress</title>
+      <link>https://www.globenewswire.com/news-release/2026/09/06/3356899/34323/en/roivant-to-present-topline-results-from-the-phase-2-phocus-study-of-mosliciguat-in-patients-with-pulmonary-hypertension-associated-with-interstitial-lung-disease-ph-ild-at-the-ers-.html</link>
+      <description>Roivant Sciences (NASDAQ: ROIV) will present topline results from the Phase 2 PHocus study of mosliciguat in patients with pulmonary hypertension associated with interstitial lung disease at the European Respiratory Society Congress.</description>
+      <pubDate>Sun, 06 Sep 2026 05:00:00 GMT</pubDate>
+      <guid>https://www.globenewswire.com/news-release/2026/09/06/3356899</guid>
+    </item>
+
+    <item>
+      <title>Verizon Waives Charges for Hurricane Lowell, Prepares Network in Hawai'i</title>
+      <link>https://www.globenewswire.com/news-release/2026/09/05/3356889/0/en/verizon-waives-charges-for-hurricane-lowell-prepares-network-in-hawai-i.html</link>
+      <description>Verizon (NYSE: VZ) is waiving call, text and data charges for customers in affected areas of Hawai'i and has pre-positioned portable network assets ahead of Hurricane Lowell.</description>
+      <pubDate>Sat, 05 Sep 2026 21:29:00 GMT</pubDate>
+      <guid>https://www.globenewswire.com/news-release/2026/09/05/3356889</guid>
+    </item>
+  </channel>
+</rss>
