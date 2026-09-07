@@ -17,7 +17,8 @@
     "db:verify": "tsx scripts/verify-db.ts",
     "scan": "tsx scripts/scan.ts",
     "process": "tsx scripts/process.ts",
-    "sync:tickers": "tsx scripts/sync-tickers.ts"
+    "sync:tickers": "tsx scripts/sync-tickers.ts",
+    "prices": "tsx scripts/refresh-prices.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",
