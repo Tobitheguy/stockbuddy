@@ -20,7 +20,10 @@
     "sync:tickers": "tsx scripts/sync-tickers.ts",
     "prices": "tsx scripts/refresh-prices.ts",
     "set-password": "tsx scripts/set-password.ts",
-    "outcomes": "tsx scripts/outcomes.ts"
+    "outcomes": "tsx scripts/outcomes.ts",
+    "dev-session": "tsx scripts/dev-session.ts",
+    "top-signals": "tsx scripts/top-signals.ts",
+    "status": "tsx scripts/edgar-status.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",
