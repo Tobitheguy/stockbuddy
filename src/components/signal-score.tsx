@@ -26,16 +26,16 @@ export function SignalScore({
 
   return (
     <div className={cn("flex items-center gap-2", className)}>
-      <span className="num w-7 text-right text-[13px] tabular-nums">
+      <span className="num w-7 text-right text-[14px] font-medium tabular-nums">
         {Math.round(clamped)}
       </span>
       <span
-        className="h-1 w-10 shrink-0 overflow-hidden rounded-[1px] bg-surface-raised"
+        className="h-1.5 w-11 shrink-0 overflow-hidden rounded-full bg-surface-raised"
         role="img"
         aria-label={`Score ${Math.round(clamped)} of 100`}
       >
         <span
-          className={cn("block h-full opacity-70", barColor)}
+          className={cn("block h-full rounded-full opacity-85", barColor)}
           style={{ width: `${clamped}%` }}
         />
       </span>

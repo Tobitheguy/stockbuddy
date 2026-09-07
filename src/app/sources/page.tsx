@@ -25,15 +25,17 @@ export default function SourcesPage() {
         body={
           <>
             Last-fetched, items/day and error counts are blank because the
-            scanner does not exist yet. Business Wire and PR Newswire ship
-            disabled: both refused the verification probe with a 403, so they
-            stay off until a real fetch proves otherwise.
+            scanner does not exist yet. Sources marked <em>live</em> were
+            fetched successfully and returned current items. Sources marked{" "}
+            <em>blocked</em> or <em>unverified</em> ship disabled and are
+            retried from the server in Step 3, which has a different IP and
+            User-Agent than the machine that ran the checks.
           </>
         }
       />
 
       <TableScroller>
-        <table className="table-dense w-full border-collapse text-[13px]">
+        <table className="table-dense w-full border-collapse">
           <thead>
             <tr>
               <th className="text-left">Source</th>
@@ -50,11 +52,11 @@ export default function SourcesPage() {
               <tr key={s.name}>
                 <td>
                   <div className="font-medium">{s.name}</div>
-                  <div className="max-w-[440px] text-[11px] text-muted-foreground">
+                  <div className="max-w-[440px] text-[12px] text-muted-foreground">
                     {s.notes}
                   </div>
                 </td>
-                <td className="num text-[12px] text-muted-foreground uppercase">
+                <td className="num text-[12px] font-medium text-muted-foreground uppercase">
                   {s.kind}
                 </td>
                 <td className="num text-right text-muted-foreground">
@@ -73,10 +75,12 @@ export default function SourcesPage() {
                     className={
                       s.verified === "live"
                         ? "text-[12px] text-ok"
-                        : "text-[12px] text-warn"
+                        : s.verified === "blocked"
+                          ? "text-[12px] text-warn"
+                          : "text-[12px] text-muted-foreground"
                     }
                   >
-                    {s.verified === "live" ? "live" : "403"}
+                    {s.verified}
                   </span>
                 </td>
                 <td className="text-[12px]">

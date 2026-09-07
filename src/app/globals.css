@@ -5,27 +5,24 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ---------------------------------------------------------------------------
-   Signal Desk design tokens
+   Signal Desk design tokens — light theme
 
-   Dark only. This is a private research terminal, not a marketing site, so
-   there is no light theme to maintain and no theme toggle to build.
+   Light only. Readability is the priority: this is a page you read for a long
+   time, and long-form reading on a dark background is harder for most people.
 
-   Priorities, in order: information density, fast scanning of a long table,
-   and an unmissable distinction between bullish and bearish. Decoration is
-   not a priority.
+   Still dense and table-first, but a touch more generous than the earlier dark
+   build: 14px base instead of 13px, and more row padding. Density is worth
+   nothing if the text is a strain.
 
-   Rhythm is 8px. Numeric columns are monospace and tabular so that digits
-   line up vertically down a column — a price column in a proportional font
-   is unreadable at a glance.
+   Rhythm is 8px. Numeric columns are monospace and tabular so digits line up
+   vertically down a column.
    --------------------------------------------------------------------------- */
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
 
-  /* Fonts. The scaffold exposes Geist under --font-geist-*; map them here.
-     (shadcn's generated default self-referenced --font-sans and resolved to
-     nothing, which silently fell back to the browser default.) */
+  /* The scaffold exposes Geist as --font-geist-*; map them here. */
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-geist-sans);
@@ -42,10 +39,9 @@
   --color-neutral: var(--neutral);
   --color-neutral-dim: var(--neutral-dim);
 
-  /* Infrastructure status. Deliberately NOT green/red: those two colors mean
-     "bullish" and "bearish" everywhere else in the product, and a healthy feed
-     has nothing to do with a rising stock. Cyan/amber keeps the two vocabularies
-     from bleeding into each other. */
+  /* Infrastructure status. Deliberately NOT green/red: those mean "bullish"
+     and "bearish" everywhere else, and a healthy feed has nothing to do with
+     a rising stock. */
   --color-ok: var(--ok);
   --color-warn: var(--warn);
 
@@ -67,60 +63,62 @@
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
 
-  /* Tight radii. Big rounded corners waste vertical space in a dense table. */
-  --radius-sm: 2px;
-  --radius-md: 3px;
-  --radius-lg: 4px;
-  --radius-xl: 6px;
-  --radius-2xl: 8px;
-  --radius-3xl: 10px;
-  --radius-4xl: 12px;
+  --radius-sm: 3px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+  --radius-xl: 8px;
+  --radius-2xl: 10px;
+  --radius-3xl: 12px;
+  --radius-4xl: 14px;
 }
 
-:root,
-.dark {
-  /* Near-black with a trace of blue. Pure #000 makes borders impossible to
-     see and the whole table reads as a single undifferentiated block. */
-  --background: oklch(0.163 0.008 255);
-  --foreground: oklch(0.928 0.004 255);
+:root {
+  /* Warm white rather than pure #fff — slightly easier on the eyes over a long
+     session, and it lets a genuinely white card sit on top of it. */
+  --background: oklch(0.993 0.001 250);
+  --foreground: oklch(0.212 0.012 255);
 
-  --surface: oklch(0.196 0.009 255);
-  --surface-raised: oklch(0.238 0.011 255);
+  --surface: oklch(0.976 0.002 250);
+  --surface-raised: oklch(0.951 0.003 250);
 
-  --card: oklch(0.196 0.009 255);
-  --card-foreground: oklch(0.928 0.004 255);
-  --popover: oklch(0.238 0.011 255);
-  --popover-foreground: oklch(0.928 0.004 255);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.212 0.012 255);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.212 0.012 255);
 
-  --primary: oklch(0.928 0.004 255);
-  --primary-foreground: oklch(0.163 0.008 255);
-  --secondary: oklch(0.262 0.011 255);
-  --secondary-foreground: oklch(0.928 0.004 255);
+  --primary: oklch(0.262 0.014 255);
+  --primary-foreground: oklch(0.993 0.001 250);
+  --secondary: oklch(0.951 0.003 250);
+  --secondary-foreground: oklch(0.262 0.014 255);
 
-  --muted: oklch(0.238 0.011 255);
-  --muted-foreground: oklch(0.652 0.012 255);
+  --muted: oklch(0.951 0.003 250);
+  /* Dark enough to clear 4.5:1 on the page background. "Muted" must still be
+     readable body text, not decoration. */
+  --muted-foreground: oklch(0.487 0.014 255);
 
-  --accent: oklch(0.262 0.011 255);
-  --accent-foreground: oklch(0.928 0.004 255);
+  --accent: oklch(0.951 0.003 250);
+  --accent-foreground: oklch(0.262 0.014 255);
 
-  --border: oklch(0.301 0.012 255);
-  --input: oklch(0.301 0.012 255);
+  --border: oklch(0.897 0.004 250);
+  --input: oklch(0.858 0.005 250);
 
-  /* Focus ring is cyan so it can never be confused with a bullish/bearish
-     state. Accessibility signal and market signal must not share a color. */
-  --ring: oklch(0.706 0.132 220);
+  /* Focus ring is blue — never green or red, so an accessibility signal can
+     never be mistaken for a market signal. */
+  --ring: oklch(0.548 0.176 258);
 
-  --bullish: oklch(0.735 0.163 152);
-  --bullish-dim: oklch(0.735 0.163 152 / 14%);
-  --bearish: oklch(0.672 0.196 22);
-  --bearish-dim: oklch(0.672 0.196 22 / 14%);
-  --neutral: oklch(0.652 0.012 255);
-  --neutral-dim: oklch(0.652 0.012 255 / 12%);
+  /* Darker than the dark-theme equivalents: saturated mid-tones that read as
+     green and red but still clear 4.5:1 against a white page. */
+  --bullish: oklch(0.487 0.136 152);
+  --bullish-dim: oklch(0.487 0.136 152 / 11%);
+  --bearish: oklch(0.512 0.196 26);
+  --bearish-dim: oklch(0.512 0.196 26 / 10%);
+  --neutral: oklch(0.487 0.014 255);
+  --neutral-dim: oklch(0.487 0.014 255 / 9%);
 
-  --destructive: oklch(0.672 0.196 22);
+  --ok: oklch(0.512 0.124 233);
+  --warn: oklch(0.552 0.128 62);
 
-  --ok: oklch(0.746 0.114 213);
-  --warn: oklch(0.812 0.132 78);
+  --destructive: oklch(0.512 0.196 26);
 
   --radius: 4px;
 }
@@ -132,15 +130,13 @@
 
   html {
     @apply font-sans;
-    /* Dark-only: prevents a white flash before paint and tells the browser to
-       render form controls and scrollbars in dark. */
-    color-scheme: dark;
+    color-scheme: light;
   }
 
   body {
     @apply bg-background text-foreground;
-    font-size: 13px;
-    line-height: 1.45;
+    font-size: 14px;
+    line-height: 1.5;
     -webkit-font-smoothing: antialiased;
   }
 
@@ -152,18 +148,17 @@
     letter-spacing: -0.01em;
   }
 
-  /* Dense table defaults. shadcn's table ships with comfortable padding meant
-     for a handful of rows; the signal feed shows hundreds. */
+  /* Dense table defaults — but with enough padding to stay readable. */
   .table-dense :is(th, td) {
-    padding-block: 6px;
-    padding-inline: 8px;
+    padding-block: 9px;
+    padding-inline: 10px;
     vertical-align: top;
   }
 
   .table-dense th {
     font-size: 11px;
-    font-weight: 500;
-    letter-spacing: 0.04em;
+    font-weight: 600;
+    letter-spacing: 0.05em;
     text-transform: uppercase;
     color: var(--muted-foreground);
     white-space: nowrap;
@@ -177,8 +172,16 @@
     background: var(--surface);
   }
 
-  /* Respect the OS setting. Score bars and row transitions are the only
-     motion in the product, and neither carries meaning. */
+  /* Zebra striping. On a light background this does more for scannability
+     across a wide row than a hover state alone. */
+  .table-dense tbody tr:nth-child(even) {
+    background: color-mix(in oklch, var(--surface) 55%, transparent);
+  }
+
+  .table-dense tbody tr:nth-child(even):hover {
+    background: var(--surface);
+  }
+
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,

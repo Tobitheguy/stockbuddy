@@ -1,22 +1,35 @@
 /**
  * Seed list of ingestion sources.
  *
- * Every entry was checked against the live endpoint on 2026-09-06. The
- * `verified` field records that check so we never silently ship a dead feed:
+ * The `verified` field records a real check against the live endpoint, so we
+ * never silently ship a dead feed:
  *
- *   "live"      - fetched successfully, returned parseable, current items.
- *   "blocked"   - the host refused our probe (403). May still work from a
- *                 server with a browser-like User-Agent, so it ships DISABLED
- *                 and must be proven by a real scan before being switched on.
+ *   "live"       - fetched successfully, returned parseable, current items.
+ *   "blocked"    - the host refused the probe (403/404/timeout). Ships DISABLED.
+ *   "unverified" - plausible and legitimate, but not yet proven from here.
+ *                  Ships DISABLED. Step 3 adds a probe that tries each one
+ *                  from the server (which has a different IP and User-Agent
+ *                  than this dev machine) and flips the ones that respond.
  *
- * Content rule: for `rss` news sources we persist title + summary + link only.
- * Full body text is persisted only for public-domain government material
- * (EDGAR filings, Federal Register, Federal Reserve) and for press-release
- * wires, which publish releases for redistribution. No HTML scraping of
- * paywalled or scrape-prohibiting sites — feeds and official APIs only.
+ * Feeds marked "live" were checked on 2026-09-06.
+ *
+ * CONTENT RULE. For third-party news sources we persist title + summary + link
+ * only, never the article body. Full text is persisted only for public-domain
+ * government material (EDGAR, Federal Register, Federal Reserve, SEC, FDA,
+ * FTC, USTR, EIA, BLS) and for press-release wires, which publish releases
+ * expressly for redistribution. No HTML scraping of paywalled or
+ * scrape-prohibiting sites — feeds and official APIs only.
+ *
+ * ON SOCIAL MEDIA. See docs/social-media.md. Short version: Instagram and
+ * Facebook have no legitimate public-post API at any price outside approved
+ * academic research, and X is now metered per read, which makes broad
+ * monitoring cost more than the rest of this system combined. Reddit is the
+ * one social source with a free, legitimate, documented feed, so it is the
+ * only one seeded here.
  */
 
 export type SourceKind = "rss" | "api" | "edgar";
+export type VerificationState = "live" | "blocked" | "unverified";
 
 export type SeedSource = {
   name: string;
@@ -33,14 +46,15 @@ export type SeedSource = {
   qualityWeight: number;
   /** Whether to persist full body text (see content rule above). */
   storeBody: boolean;
-  verified: "live" | "blocked";
+  verified: VerificationState;
   notes: string;
 };
 
 export const SEED_SOURCES: SeedSource[] = [
-  // --- SEC EDGAR -----------------------------------------------------------
-  // The highest-value source in the list: complete, free, full text, and it is
+  // ==========================================================================
+  // SEC EDGAR — the highest-value sources here. Complete, free, full text, and
   // where company-originated events legally must appear first.
+  // ==========================================================================
   {
     name: "SEC EDGAR 8-K",
     kind: "edgar",
@@ -72,7 +86,31 @@ export const SEED_SOURCES: SeedSource[] = [
     qualityWeight: 0.95,
     storeBody: true,
     verified: "live",
-    notes: "Annual results.",
+    notes: "Annual results. Going-concern language lives here.",
+  },
+  {
+    name: "SEC EDGAR SC 13D",
+    kind: "edgar",
+    url: "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=SC+13D&company=&dateb=&owner=include&count=100&output=atom",
+    enabled: true,
+    pollIntervalSec: 300,
+    qualityWeight: 0.9,
+    storeBody: true,
+    verified: "live",
+    notes:
+      "Activist stake disclosures — an investor crossing 5% with intent to influence. Historically one of the strongest single-filing signals.",
+  },
+  {
+    name: "SEC EDGAR SC 13G",
+    kind: "edgar",
+    url: "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=SC+13G&company=&dateb=&owner=include&count=100&output=atom",
+    enabled: true,
+    pollIntervalSec: 900,
+    qualityWeight: 0.7,
+    storeBody: true,
+    verified: "live",
+    notes:
+      "Passive 5% stakes. Much weaker than 13D — mostly index funds rebalancing.",
   },
   {
     name: "SEC EDGAR Form 4",
@@ -84,12 +122,24 @@ export const SEED_SOURCES: SeedSource[] = [
     storeBody: true,
     verified: "live",
     notes:
-      "Insider buys/sells. High volume and mostly noise; the scorer downweights routine grants.",
+      "Insider buys/sells. Very high volume and mostly routine 10b5-1 vesting; the scorer must separate those from unplanned open-market cluster buys.",
+  },
+  {
+    name: "SEC EDGAR S-1",
+    kind: "edgar",
+    url: "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=S-1&company=&dateb=&owner=include&count=100&output=atom",
+    enabled: true,
+    pollIntervalSec: 900,
+    qualityWeight: 0.7,
+    storeBody: true,
+    verified: "live",
+    notes:
+      "IPO registrations. Catches newly public companies before they have analyst coverage.",
   },
 
-  // --- Press release wires -------------------------------------------------
-  // Company news originates here. When a newspaper reports a contract win, it
-  // is usually reading the same release.
+  // ==========================================================================
+  // Press release wires — where company news originates.
+  // ==========================================================================
   {
     name: "GlobeNewswire - Public Companies",
     kind: "rss",
@@ -134,7 +184,7 @@ export const SEED_SOURCES: SeedSource[] = [
     storeBody: true,
     verified: "blocked",
     notes:
-      "businesswire.com returned 403 to our probe. Ships disabled; enable on /sources once a real scan proves it.",
+      "businesswire.com returned 403 to the probe. Step 3 retries from the server.",
   },
   {
     name: "PR Newswire - All News Releases",
@@ -145,12 +195,75 @@ export const SEED_SOURCES: SeedSource[] = [
     qualityWeight: 0.85,
     storeBody: true,
     verified: "blocked",
-    notes:
-      "Cloudflare-fronted; probe blocked. Ships disabled pending a real scan.",
+    notes: "Cloudflare-fronted; probe blocked. Step 3 retries from the server.",
   },
 
-  // --- Government / policy -------------------------------------------------
-  // Where second-order signals originate: a tariff, a rule, a rate decision.
+  // ==========================================================================
+  // Financial news outlets.
+  // ==========================================================================
+  {
+    name: "WSJ - Markets",
+    kind: "rss",
+    url: "https://feeds.content.dowjones.io/public/rss/RSSMarketsMain",
+    enabled: true,
+    pollIntervalSec: 300,
+    qualityWeight: 0.8,
+    storeBody: false,
+    verified: "live",
+    notes:
+      "Dow Jones public feed. Headlines and standfirsts only — the articles themselves are paywalled and are never fetched.",
+  },
+  {
+    name: "Yahoo Finance - News",
+    kind: "rss",
+    url: "https://finance.yahoo.com/news/rssindex",
+    enabled: true,
+    pollIntervalSec: 300,
+    qualityWeight: 0.65,
+    storeBody: false,
+    verified: "live",
+    notes:
+      "Broad aggregation across outlets. Noisy, but wide — good recall, low precision.",
+  },
+  {
+    name: "MarketWatch - Top Stories",
+    kind: "rss",
+    url: "https://feeds.content.dowjones.io/public/rss/mw_topstories",
+    enabled: true,
+    pollIntervalSec: 300,
+    qualityWeight: 0.55,
+    storeBody: false,
+    verified: "live",
+    notes:
+      "Heavily weighted to personal finance and advice columns rather than market news. Low weight on purpose.",
+  },
+  {
+    name: "CNBC - Top News",
+    kind: "rss",
+    url: "https://www.cnbc.com/id/100003114/device/rss/rss.html",
+    enabled: false,
+    pollIntervalSec: 300,
+    qualityWeight: 0.7,
+    storeBody: false,
+    verified: "blocked",
+    notes: "403 to the probe. Step 3 retries from the server.",
+  },
+  {
+    name: "Seeking Alpha - Market Currents",
+    kind: "rss",
+    url: "https://seekingalpha.com/market_currents.xml",
+    enabled: false,
+    pollIntervalSec: 300,
+    qualityWeight: 0.6,
+    storeBody: false,
+    verified: "unverified",
+    notes: "Not probed from here. Step 3 tries it.",
+  },
+
+  // ==========================================================================
+  // Government and regulators — where second-order signals originate. All
+  // public domain, so full text is fair to store.
+  // ==========================================================================
   {
     name: "Federal Register",
     kind: "api",
@@ -174,9 +287,101 @@ export const SEED_SOURCES: SeedSource[] = [
     verified: "live",
     notes: "Rate decisions, enforcement actions, bank approvals.",
   },
+  {
+    name: "SEC - Press Releases",
+    kind: "rss",
+    url: "https://www.sec.gov/news/pressreleases.rss",
+    enabled: true,
+    pollIntervalSec: 900,
+    qualityWeight: 0.85,
+    storeBody: true,
+    verified: "live",
+    notes: "Enforcement actions and rule changes.",
+  },
+  {
+    name: "FDA - Press Announcements",
+    kind: "rss",
+    url: "https://www.fda.gov/about-fda/contact-fda/stay-informed/rss-feeds/press-releases/rss.xml",
+    enabled: true,
+    pollIntervalSec: 300,
+    qualityWeight: 0.9,
+    storeBody: true,
+    verified: "live",
+    notes:
+      "Approvals, rejections and recalls. For biotech this is the event itself, not coverage of it — and it reliably moves two stocks, the filer's and its nearest competitor's.",
+  },
+  {
+    name: "FTC - Competition Press Releases",
+    kind: "rss",
+    url: "https://www.ftc.gov/feeds/press-release-competition.xml",
+    enabled: true,
+    pollIntervalSec: 900,
+    qualityWeight: 0.85,
+    storeBody: true,
+    verified: "live",
+    notes:
+      "Merger challenges and consent orders. A blocked deal moves both parties hard.",
+  },
+  {
+    name: "USTR - Press Releases",
+    kind: "rss",
+    url: "https://ustr.gov/rss.xml",
+    enabled: true,
+    pollIntervalSec: 900,
+    qualityWeight: 0.8,
+    storeBody: true,
+    verified: "live",
+    notes: "Tariffs and trade actions — the classic second-order source.",
+  },
+  {
+    name: "EIA - Today in Energy",
+    kind: "rss",
+    url: "https://www.eia.gov/rss/todayinenergy.xml",
+    enabled: true,
+    pollIntervalSec: 3600,
+    qualityWeight: 0.7,
+    storeBody: true,
+    verified: "live",
+    notes: "Energy supply, demand and price analysis.",
+  },
+  {
+    name: "BLS - Latest Numbers",
+    kind: "rss",
+    url: "https://www.bls.gov/feed/bls_latest.rss",
+    enabled: true,
+    pollIntervalSec: 3600,
+    qualityWeight: 0.6,
+    storeBody: true,
+    verified: "live",
+    notes:
+      "CPI, payrolls, unemployment. Publishes as a single rolling item rather than one per release, so dedupe must key on content, not URL.",
+  },
+  {
+    name: "US Treasury - Press Releases",
+    kind: "rss",
+    url: "https://home.treasury.gov/news/press-releases/feed",
+    enabled: false,
+    pollIntervalSec: 900,
+    qualityWeight: 0.8,
+    storeBody: true,
+    verified: "blocked",
+    notes: "404 at this URL. Step 3 resolves the current one.",
+  },
+  {
+    name: "DOJ - Antitrust",
+    kind: "rss",
+    url: "https://www.justice.gov/feeds/opa/justice-news.xml",
+    enabled: false,
+    pollIntervalSec: 900,
+    qualityWeight: 0.8,
+    storeBody: true,
+    verified: "blocked",
+    notes: "404 at this URL. Step 3 resolves the current one.",
+  },
 
-  // --- Aggregated market news ----------------------------------------------
-  // Headline-level breadth across outlets we cannot fetch directly.
+  // ==========================================================================
+  // Aggregated market data.
+  // ==========================================================================
   {
     name: "Finnhub - Market News",
     kind: "api",
@@ -187,6 +392,35 @@ export const SEED_SOURCES: SeedSource[] = [
     storeBody: false,
     verified: "live",
     notes:
-      "Requires MARKET_DATA_API_KEY. Headline + summary only; we never store third-party article bodies.",
+      "Requires MARKET_DATA_API_KEY. Headline + summary only; third-party article bodies are never stored.",
+  },
+
+  // ==========================================================================
+  // Social. Reddit only — see docs/social-media.md for why X, Instagram and
+  // Facebook are not here.
+  // ==========================================================================
+  {
+    name: "Reddit - r/stocks",
+    kind: "rss",
+    url: "https://www.reddit.com/r/stocks/new/.rss",
+    enabled: false,
+    pollIntervalSec: 600,
+    qualityWeight: 0.3,
+    storeBody: false,
+    verified: "unverified",
+    notes:
+      "Public Reddit feed, legitimate and free. Very low quality weight: retail chatter is mostly reaction to news already in the other feeds, not new information. Ships disabled until it earns its place in /stats.",
+  },
+  {
+    name: "Reddit - r/wallstreetbets",
+    kind: "rss",
+    url: "https://www.reddit.com/r/wallstreetbets/new/.rss",
+    enabled: false,
+    pollIntervalSec: 600,
+    qualityWeight: 0.2,
+    storeBody: false,
+    verified: "unverified",
+    notes:
+      "Same caveat as r/stocks, more so. Useful only for detecting a crowd already moving, never as an original signal.",
   },
 ];

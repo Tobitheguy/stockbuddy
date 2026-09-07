@@ -65,6 +65,31 @@ Living status doc. Updated at every checkpoint.
 - Cross-model review: `docs/reviews/step-1.md`. 0 blockers, 2 major, 2 minor,
   1 nit — all fixed before raising the checkpoint.
 
+### CP1a — Light theme, expanded sources (your change request)
+
+- **Theme switched from dark to light.** Warm white page, near-black text,
+  14px base (was 13px), more row padding, zebra striping. Bullish/bearish
+  darkened so they still clear contrast requirements against white.
+- **Sources: 12 → 30** (22 verified live, 22 enabled). Newly verified live: SEC 13D, 13G, S-1, SEC press
+  releases, FDA, FTC competition, USTR, EIA, BLS, WSJ Markets, Yahoo Finance,
+  MarketWatch. Reddit seeded but disabled. See `docs/social-media.md` for why
+  X, Instagram and Facebook are not in the list.
+- `verified` gained a third state, `unverified`, for sources that are
+  plausible but unproven from this machine. Both `blocked` and `unverified`
+  ship disabled and get retried from the server in Step 3.
+
+**Two features added to the plan, both landing in CP2 (schema) and CP5 (UI):**
+
+1. **Live price chart on the ticker page.** Clicking a company shows its live
+   quote and an interactive chart from the market-data API, alongside its
+   signals.
+2. **Watchlist entry price tracking.** The watchlist records the price at the
+   moment you add a symbol, then shows the return since that moment. This is
+   the same question `/stats` answers about signals, asked about your own
+   decisions — and it is the most direct measure of whether this tool is worth
+   trusting. It changes the `watchlist` table, so it is being designed into
+   CP2 rather than bolted on later.
+
 ---
 
 ## Decisions made
@@ -76,6 +101,11 @@ Living status doc. Updated at every checkpoint.
 | Scoring model | `claude-opus-5` | Runs only on triage survivors. Second-order reasoning is the whole point of the tool, so this is where the budget goes. |
 | Project location | Repo root, package name `stockbuddy` | The folder `Stockbuddy` has a capital letter, which npm rejects as a package name; the package is renamed rather than the folder. |
 | Poll intervals | 60s for EDGAR + wires, 300–900s for the rest | Catalysts originate in filings and wires. Government feeds move slowly enough that a 60s poll is wasted requests. |
+| Theme | **Light**, 14px base | Changed on request. Readability over aesthetics — this is a page you read for a long time. |
+| Instagram / Facebook | **Not possible** | Meta killed CrowdTangle in Aug 2024; its replacement is restricted to approved academic and nonprofit researchers. The Graph API only returns data about accounts you own. No legitimate path exists at any price. |
+| X (Twitter) | **Deferred, not refused** | Legitimate but metered at ~$0.005/read since Feb 2026. Even a narrow 50-account setup costs ~$150/mo — more than the entire rest of the platform — for a source that mostly echoes news the filings already gave us. Revisit once `/stats` shows whether early chatter is actually the gap. |
+| Reddit | Seeded, disabled, lowest weight | Free and legitimate, so it clears the bar. But retail chatter is mostly reaction to news already in the other feeds; enabling it early would flood the feed and inflate the LLM bill during calibration. |
+| Watchlist price tracking | Record `price_at_add`, show return since | Directly answers "is this tool reliable" for the user's own decisions, not just for the model's signals. |
 | Seed fields vs DB columns | `store_body` becomes a real column on `sources`; `verified` and `notes` stay seed-only | Raised by review. `store_body` is enforced at ingest time on every scan, so it has to live in the DB. `verified`/`notes` are build-time provenance about how the source list was assembled — they belong in version control, not in a row that a runtime toggle could contradict. |
 
 ### Review fixes applied at CP0

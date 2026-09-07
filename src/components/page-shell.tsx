@@ -10,10 +10,10 @@ export function PageTitle({
   actions?: React.ReactNode;
 }) {
   return (
-    <div className="mb-3 flex items-baseline gap-3">
-      <h1 className="text-[15px] font-semibold tracking-tight">{title}</h1>
+    <div className="mb-4 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+      <h1 className="text-[17px] font-semibold tracking-tight">{title}</h1>
       {subtitle ? (
-        <p className="text-[12px] text-muted-foreground">{subtitle}</p>
+        <p className="text-[13px] text-muted-foreground">{subtitle}</p>
       ) : null}
       {actions ? <div className="ml-auto">{actions}</div> : null}
     </div>
@@ -38,21 +38,21 @@ export function StatePanel({
   return (
     <div
       className={cn(
-        "rounded-md border border-border bg-surface px-4 py-6 text-center",
-        tone === "error" && "border-bearish/40",
+        "rounded-lg border border-border bg-card px-5 py-7 text-center shadow-[0_1px_2px_rgb(16_24_40/0.04)]",
+        tone === "error" && "border-bearish/35 bg-bearish-dim",
         className,
       )}
     >
       <p
         className={cn(
-          "text-[13px] font-medium",
+          "text-[14px] font-semibold",
           tone === "error" ? "text-bearish" : "text-foreground",
         )}
       >
         {title}
       </p>
       {body ? (
-        <div className="mx-auto mt-1 max-w-prose text-[12px] text-muted-foreground">
+        <div className="mx-auto mt-1.5 max-w-prose text-[13px] leading-relaxed text-muted-foreground">
           {body}
         </div>
       ) : null}

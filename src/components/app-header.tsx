@@ -21,13 +21,13 @@ export function AppHeader() {
   const pathname = usePathname();
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur">
+    <header className="sticky top-0 z-40 border-b border-border bg-card/90 backdrop-blur-sm">
       {/* min-w-0 + shrink-0 on the brand keeps the nav from pushing the row
           wider than the viewport at 320px, where it would otherwise clip. */}
-      <div className="mx-auto flex h-11 w-full max-w-[1280px] items-center gap-3 px-4 sm:gap-6">
+      <div className="mx-auto flex h-12 w-full max-w-[1280px] items-center gap-3 px-4 sm:gap-6">
         <Link
           href="/"
-          className="flex shrink-0 items-center gap-2 text-[13px] font-semibold tracking-tight"
+          className="flex shrink-0 items-center gap-2 text-[14px] font-semibold tracking-tight"
         >
           {/* Square mark. A pulse, not a logo. */}
           <span
@@ -49,11 +49,11 @@ export function AppHeader() {
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "shrink-0 rounded-sm px-2 py-1 text-[13px] transition-colors",
+                  "shrink-0 rounded-md px-2.5 py-1 text-[13px] transition-colors",
                   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
                   active
-                    ? "bg-surface-raised text-foreground"
-                    : "text-muted-foreground hover:text-foreground",
+                    ? "bg-surface-raised font-medium text-foreground"
+                    : "text-muted-foreground hover:bg-surface hover:text-foreground",
                 )}
               >
                 {item.label}

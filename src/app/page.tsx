@@ -116,7 +116,7 @@ export default function SignalsPage() {
       />
 
       <TableScroller>
-        <table className="table-dense w-full border-collapse text-[13px]">
+        <table className="table-dense w-full border-collapse">
           <thead>
             <tr>
               <th className="text-left">Ticker</th>
@@ -144,12 +144,12 @@ export default function SignalsPage() {
                       sector
                     </span>
                   )}
-                  <div className="text-[11px] text-muted-foreground">
+                  <div className="text-[12px] text-muted-foreground">
                     {row.company}
                   </div>
                 </td>
                 <td className="max-w-[520px]">{row.headline}</td>
-                <td className="whitespace-nowrap text-[12px] text-muted-foreground">
+                <td className="whitespace-nowrap text-[13px] text-muted-foreground">
                   {EVENT_TYPE_LABEL[row.eventType]}
                 </td>
                 <td>
@@ -161,7 +161,7 @@ export default function SignalsPage() {
                 <td className="num text-right text-muted-foreground">
                   {formatAge(row.publishedAt, PREVIEW_NOW)}
                 </td>
-                <td className="whitespace-nowrap text-[12px] text-muted-foreground">
+                <td className="whitespace-nowrap text-[13px] text-muted-foreground">
                   {row.source}
                 </td>
               </tr>
