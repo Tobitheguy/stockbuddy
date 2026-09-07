@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { desc, eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { items, signals, sources, tickers } from "@/db/schema";
+import { items, signals, sources, tickers, watchlist } from "@/db/schema";
 import { DirectionBadge } from "@/components/direction-badge";
 import { SignalScore } from "@/components/signal-score";
 import { PageTitle, StatePanel, TableScroller } from "@/components/page-shell";
 import { EVENT_TYPE_LABEL, type Direction, type EventType } from "@/lib/types";
 import { formatAge } from "@/lib/format";
+import { WatchlistButton } from "@/components/watchlist-button";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +40,7 @@ async function loadSignals() {
 export default async function SignalsPage() {
   let rows: Awaited<ReturnType<typeof loadSignals>>;
   let totals = { signals: 0, ruleScored: 0 };
+  let watched = new Set<string>();
 
   try {
     rows = await loadSignals();
@@ -49,6 +51,11 @@ export default async function SignalsPage() {
       })
       .from(signals);
     totals = { signals: counts[0]?.total ?? 0, ruleScored: counts[0]?.rules ?? 0 };
+    watched = new Set(
+      (await db().select({ symbol: watchlist.symbol }).from(watchlist)).map(
+        (r) => r.symbol,
+      ),
+    );
   } catch (err) {
     return (
       <>
@@ -128,12 +135,18 @@ export default async function SignalsPage() {
               <tr key={row.id}>
                 <td className="whitespace-nowrap align-top">
                   {row.symbol ? (
-                    <Link
-                      href={`/t/${row.symbol}`}
-                      className="num font-medium hover:underline"
-                    >
-                      {row.symbol}
-                    </Link>
+                    <span className="flex items-center gap-1.5">
+                      <WatchlistButton
+                        symbol={row.symbol}
+                        initiallyWatched={watched.has(row.symbol)}
+                      />
+                      <Link
+                        href={`/t/${row.symbol}`}
+                        className="num font-medium hover:underline"
+                      >
+                        {row.symbol}
+                      </Link>
+                    </span>
                   ) : (
                     <span className="text-[12px] text-muted-foreground">sector</span>
                   )}
