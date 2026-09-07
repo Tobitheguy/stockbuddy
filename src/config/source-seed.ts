@@ -275,12 +275,13 @@ export const SEED_SOURCES: SeedSource[] = [
     name: "CNBC - Top News",
     kind: "rss",
     url: "https://www.cnbc.com/id/100003114/device/rss/rss.html",
-    enabled: false,
+    enabled: true,
     pollIntervalSec: 300,
     qualityWeight: 0.7,
     storeBody: false,
-    verified: "blocked",
-    notes: "403 to the probe. Step 3 retries from the server.",
+    verified: "live",
+    notes:
+      "Was 403 to the earlier probe; re-tested during Step 3 and returns 200 with 30 items under a normal browser User-Agent. Fast on M&A and breaking corporate news.",
   },
   {
     name: "MarketWatch - MarketPulse",
@@ -406,13 +407,13 @@ export const SEED_SOURCES: SeedSource[] = [
     name: "BLS - Latest Numbers",
     kind: "rss",
     url: "https://www.bls.gov/feed/bls_latest.rss",
-    enabled: true,
+    enabled: false,
     pollIntervalSec: 3600,
     qualityWeight: 0.6,
     storeBody: true,
-    verified: "live",
+    verified: "blocked",
     notes:
-      "CPI, payrolls, unemployment. Publishes as a single rolling item rather than one per release, so dedupe must key on content, not URL.",
+      "CPI, payrolls, unemployment. Returns 403 to every User-Agent tried, including a full browser string — bls.gov appears to block non-interactive clients outright. Disabled. The same prints reach us via WSJ Markets and MarketPulse, so this is a redundancy loss, not a coverage gap.",
   },
   {
     name: "US Treasury - Press Releases",

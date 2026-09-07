@@ -1,6 +1,9 @@
 {
   "compilerOptions": {
-    "target": "ES2017",
+    // Raised from the scaffold's ES2017. Runtime is Node 24 and modern
+    // browsers; ES2017 blocked named regex capture groups, which the EDGAR
+    // title parser uses for readability.
+    "target": "ES2022",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
