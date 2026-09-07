@@ -175,6 +175,16 @@ export const tickers = pgTable(
   {
     symbol: text("symbol").primaryKey(),
     name: text("name").notNull(),
+    /**
+     * SEC Central Index Key, zero-padded to 10 digits.
+     *
+     * This is the exact join between an EDGAR filing and a ticker. EDGAR
+     * entries carry the CIK but never the symbol, so without this the only
+     * way to connect a filing to a company is fuzzy name matching — which is
+     * both less accurate and unable to distinguish two similarly named
+     * issuers. Sourced free from sec.gov/files/company_tickers.json.
+     */
+    cik: text("cik"),
     exchange: text("exchange"),
     sector: text("sector"),
     industry: text("industry"),
@@ -186,6 +196,8 @@ export const tickers = pgTable(
   },
   (t) => [
     index("tickers_is_active_idx").on(t.isActive),
+    // The EDGAR join. Every filing lookup goes through this.
+    index("tickers_cik_idx").on(t.cik),
     // Symbols are stored uppercase so /t/aapl and /t/AAPL cannot become two
     // different rows.
     check("tickers_symbol_upper", sql`${t.symbol} = upper(${t.symbol})`),

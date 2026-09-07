@@ -1,119 +1,114 @@
 import Link from "next/link";
+import { desc, eq, sql } from "drizzle-orm";
+import { db } from "@/db/client";
+import { items, signals, sources, tickers } from "@/db/schema";
 import { DirectionBadge } from "@/components/direction-badge";
 import { SignalScore } from "@/components/signal-score";
 import { PageTitle, StatePanel, TableScroller } from "@/components/page-shell";
 import { EVENT_TYPE_LABEL, type Direction, type EventType } from "@/lib/types";
 import { formatAge } from "@/lib/format";
 
-/**
- * CP1: layout preview only.
- *
- * These rows are hardcoded so the design foundation can be reviewed before the
- * database exists. The real feed — sorting, filters, and the expandable "why"
- * row — is wired to Postgres in Step 5. Nothing here calls an API or an LLM.
- */
-type PreviewRow = {
-  symbol: string | null;
-  company: string;
-  headline: string;
-  eventType: EventType;
-  direction: Direction;
-  score: number;
-  publishedAt: string;
-  source: string;
-};
+export const dynamic = "force-dynamic";
 
-const PREVIEW: PreviewRow[] = [
-  {
-    symbol: "BWXT",
-    company: "BWX Technologies",
-    headline:
-      "Awarded $2.6 billion U.S. Navy contract for naval nuclear reactor components",
-    eventType: "contract_win",
-    direction: "bullish",
-    score: 87,
-    publishedAt: "2026-09-06T13:00:00Z",
-    source: "GlobeNewswire",
-  },
-  {
-    symbol: "NUE",
-    company: "Nucor",
-    headline:
-      "Section 232 steel tariff raised to 50%; domestic producers gain a price umbrella",
-    eventType: "regulatory_policy",
-    direction: "bullish",
-    score: 74,
-    publishedAt: "2026-09-06T09:15:00Z",
-    source: "Federal Register",
-  },
-  {
-    symbol: null,
-    company: "Homebuilding (sector)",
-    headline:
-      "Section 232 steel tariff raised to 50%; steel-consuming manufacturers absorb input cost",
-    eventType: "regulatory_policy",
-    direction: "bearish",
-    score: 61,
-    publishedAt: "2026-09-06T09:15:00Z",
-    source: "Federal Register",
-  },
-  {
-    symbol: "AEP",
-    company: "American Electric Power",
-    headline:
-      "1.2 GW hyperscale campus sited in central Ohio adds material new load",
-    eventType: "contract_win",
-    direction: "bullish",
-    score: 58,
-    publishedAt: "2026-09-06T12:15:00Z",
-    source: "GlobeNewswire",
-  },
-  {
-    symbol: "ROIV",
-    company: "Roivant Sciences",
-    headline:
-      "To present topline Phase 2 PHocus results at ERS Congress — announcement only, no data yet",
-    eventType: "product_launch",
-    direction: "neutral",
-    score: 22,
-    publishedAt: "2026-09-06T05:00:00Z",
-    source: "GlobeNewswire",
-  },
-  {
-    symbol: "VZ",
-    company: "Verizon",
-    headline: "Waives charges for Hurricane Lowell, prepares network in Hawai'i",
-    eventType: "other",
-    direction: "neutral",
-    score: 6,
-    publishedAt: "2026-09-05T21:29:00Z",
-    source: "GlobeNewswire",
-  },
-];
+const PAGE_SIZE = 60;
 
-// Fixed "now" so the Age column is stable across builds and does not make the
-// page non-deterministic during CP1 review.
-const PREVIEW_NOW = new Date("2026-09-06T23:00:00Z");
+async function loadSignals() {
+  return db()
+    .select({
+      id: signals.id,
+      symbol: signals.symbol,
+      companyName: tickers.name,
+      eventType: signals.eventType,
+      direction: signals.direction,
+      score: signals.score,
+      rationale: signals.rationale,
+      model: signals.model,
+      title: items.title,
+      url: items.canonicalUrl,
+      publishedAt: items.publishedAt,
+      sourceName: sources.name,
+    })
+    .from(signals)
+    .innerJoin(items, eq(items.id, signals.itemId))
+    .innerJoin(sources, eq(sources.id, items.sourceId))
+    .leftJoin(tickers, eq(tickers.symbol, signals.symbol))
+    .orderBy(desc(signals.score), desc(items.publishedAt))
+    .limit(PAGE_SIZE);
+}
 
-export default function SignalsPage() {
+export default async function SignalsPage() {
+  let rows: Awaited<ReturnType<typeof loadSignals>>;
+  let totals = { signals: 0, ruleScored: 0 };
+
+  try {
+    rows = await loadSignals();
+    const counts = await db()
+      .select({
+        total: sql<number>`count(*)::int`,
+        rules: sql<number>`count(*) filter (where ${signals.model} = 'rules')::int`,
+      })
+      .from(signals);
+    totals = { signals: counts[0]?.total ?? 0, ruleScored: counts[0]?.rules ?? 0 };
+  } catch (err) {
+    return (
+      <>
+        <PageTitle title="Signals" />
+        <StatePanel
+          tone="error"
+          title="Cannot reach the database"
+          body={
+            <div className="num text-[11px]">
+              {err instanceof Error ? err.message.slice(0, 200) : "unknown error"}
+            </div>
+          }
+        />
+      </>
+    );
+  }
+
+  if (rows.length === 0) {
+    return (
+      <>
+        <PageTitle title="Signals" />
+        <StatePanel
+          title="No signals yet"
+          body={
+            <>
+              Run <code>npm run scan</code> to collect items, then{" "}
+              <code>npm run process</code> to turn them into signals. Once the
+              cron jobs are live this happens by itself.
+            </>
+          }
+        />
+      </>
+    );
+  }
+
+  const allRuleScored = totals.ruleScored === totals.signals;
+
   return (
     <>
       <PageTitle
         title="Signals"
-        subtitle="Ranked by score. Every row links to its source."
+        subtitle={`${totals.signals} signals. Ranked by score — magnitude × confidence × source quality × recency.`}
       />
 
-      <StatePanel
-        className="mb-3"
-        title="Layout preview — not live data"
-        body={
-          <>
-            These six rows are hardcoded to show the design foundation. The
-            scanner, scorer and database land in Steps 3–5; until then nothing
-            on this page is real.
-          </>
-        }
-      />
+      {allRuleScored ? (
+        <StatePanel
+          className="mb-4"
+          title="Rule-based mode — no AI scoring"
+          body={
+            <>
+              Every row below was matched and ranked by rules alone, at zero
+              cost. <strong>Direction is neutral everywhere because nothing
+              has read the content</strong> — a guessed direction would be a
+              coin flip dressed up as a judgement. Set{" "}
+              <code>SCORING_MODE</code> to have Claude read each item and
+              supply direction, magnitude and reasoning.
+            </>
+          }
+        />
+      ) : null}
 
       <TableScroller>
         <table className="table-dense w-full border-collapse">
@@ -129,9 +124,9 @@ export default function SignalsPage() {
             </tr>
           </thead>
           <tbody>
-            {PREVIEW.map((row, i) => (
-              <tr key={i}>
-                <td className="whitespace-nowrap">
+            {rows.map((row) => (
+              <tr key={row.id}>
+                <td className="whitespace-nowrap align-top">
                   {row.symbol ? (
                     <Link
                       href={`/t/${row.symbol}`}
@@ -140,35 +135,54 @@ export default function SignalsPage() {
                       {row.symbol}
                     </Link>
                   ) : (
-                    <span className="text-[11px] text-muted-foreground">
-                      sector
-                    </span>
+                    <span className="text-[12px] text-muted-foreground">sector</span>
                   )}
-                  <div className="text-[12px] text-muted-foreground">
-                    {row.company}
-                  </div>
+                  {row.companyName ? (
+                    <div className="max-w-[190px] truncate text-[12px] text-muted-foreground">
+                      {row.companyName}
+                    </div>
+                  ) : null}
                 </td>
-                <td className="max-w-[520px]">{row.headline}</td>
-                <td className="whitespace-nowrap text-[13px] text-muted-foreground">
-                  {EVENT_TYPE_LABEL[row.eventType]}
+                <td className="max-w-[520px] align-top">
+                  {/* Every signal links to its source. Non-negotiable: these
+                      are prompts for your own research, not conclusions. */}
+                  <a
+                    href={row.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:underline"
+                  >
+                    {row.title}
+                  </a>
                 </td>
-                <td>
-                  <DirectionBadge direction={row.direction} />
+                <td className="whitespace-nowrap align-top text-[13px] text-muted-foreground">
+                  {EVENT_TYPE_LABEL[row.eventType as EventType]}
                 </td>
-                <td>
-                  <SignalScore score={row.score} direction={row.direction} />
+                <td className="align-top">
+                  <DirectionBadge direction={row.direction as Direction} />
                 </td>
-                <td className="num text-right text-muted-foreground">
-                  {formatAge(row.publishedAt, PREVIEW_NOW)}
+                <td className="align-top">
+                  <SignalScore
+                    score={Number(row.score)}
+                    direction={row.direction as Direction}
+                  />
                 </td>
-                <td className="whitespace-nowrap text-[13px] text-muted-foreground">
-                  {row.source}
+                <td className="num align-top text-right text-muted-foreground">
+                  {formatAge(row.publishedAt)}
+                </td>
+                <td className="whitespace-nowrap align-top text-[13px] text-muted-foreground">
+                  {row.sourceName}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </TableScroller>
+
+      <p className="mt-4 text-[12px] text-muted-foreground">
+        Showing the top {rows.length} of {totals.signals}. Every headline links
+        to its original source.
+      </p>
     </>
   );
 }
