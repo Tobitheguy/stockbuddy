@@ -311,9 +311,21 @@ export default async function TickerPage({ params }: PageProps<"/t/[symbol]">) {
         </section>
 
         <section className="rounded-lg border border-border bg-card p-4">
-          <h2 className="mb-2 text-[13px] font-semibold">
-            How rough is the ride
+          <h2 className="text-[13px] font-semibold">
+            How rough has the ride been
           </h2>
+          {/*
+            Every number in this panel describes the LAST twelve months. Said
+            once, plainly, at the top — because the panel sits beside a signal
+            score and was read as a forecast: "the maximum for this year is
+            39". A 52-week high is a record, not a ceiling, and a catalyst is
+            precisely the thing that breaks one.
+          */}
+          <p className="mb-2 text-[11px] text-muted-foreground">
+            All figures below are the <strong>past 12 months</strong> — a
+            record of how this stock has behaved, not a forecast of where it
+            can go.
+          </p>
           {risk ? (
             <>
               <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-[13px]">
@@ -326,19 +338,25 @@ export default async function TickerPage({ params }: PageProps<"/t/[symbol]">) {
                   value={`${risk.maxDrawdownPct.toFixed(0)}%`}
                 />
                 <Meta
-                  label="52-week range"
+                  label="Traded between"
                   value={`$${formatPrice(risk.fiftyTwoWeekLow)} – $${formatPrice(risk.fiftyTwoWeekHigh)}`}
                 />
                 <Meta
                   label="Today sits at"
-                  value={`${risk.rangePositionPct.toFixed(0)}% of that range`}
+                  value={`${risk.rangePositionPct.toFixed(0)}% of that past range`}
                 />
               </dl>
               <p className="mt-2 text-[12px] text-muted-foreground">
-                {volatilityLabel(risk.annualVolPct).note}. These are measured
-                facts about past behaviour — context for your own judgement,
-                never a recommendation. Whether and how much to invest is your
-                decision alone.
+                {volatilityLabel(risk.annualVolPct).note}.{" "}
+                <strong className="text-foreground">
+                  A 52-week high is a record, not a ceiling.
+                </strong>{" "}
+                Stocks leave that range routinely, and a catalyst — a merger, an
+                approval, a guidance cut — is exactly the kind of event that
+                does it. Read these numbers as &ldquo;how much does this move
+                on an ordinary day&rdquo;, which is what makes an extraordinary
+                day worth noticing. They are context for your own judgement,
+                never a recommendation.
               </p>
             </>
           ) : (
@@ -366,9 +384,11 @@ export default async function TickerPage({ params }: PageProps<"/t/[symbol]">) {
             failure.
           </Explain>
           <Explain term="Score, 0–100">
-            How much attention the row deserves. It combines how big the event
-            could be, how confident the reasoning is, how close the source is
-            to the original document, and how recent it is.
+            How much attention the row deserves — not a price target and not a
+            percentage. It combines how big the event could be, how confident
+            the reasoning is, how close the source is to the original document,
+            and how recent it is. A 72 says &ldquo;read this today&rdquo;, it
+            does not say the stock will move 72 of anything.
           </Explain>
           <Explain term="Magnitude, 1–5">
             How much this could move the share price. 5 is reserved for things
