@@ -10,7 +10,7 @@ import { WatchlistButton } from "@/components/watchlist-button";
 import { daysUntilLabel, nextEarnings } from "@/market/earnings";
 import { chartCloses, ensureHistory } from "@/market/history";
 import { pctReturn } from "@/market/prices";
-import { capBucket, ensureProfile } from "@/market/profile";
+import { capBucket, ensureDescription, ensureProfile } from "@/market/profile";
 import { riskContext, volatilityLabel } from "@/market/risk";
 import { displayScore, scoreBand } from "@/scoring";
 import { liveScore } from "@/lib/live-score";
@@ -47,6 +47,13 @@ export default async function TickerPage({ params }: PageProps<"/t/[symbol]">) {
     nextEarnings(symbol).catch(() => null),
   ]);
   const risk = riskContext(closes);
+  // Generated once per company by Haiku, then cached forever — a fraction of
+  // a cent, spent only for pages the user actually opens.
+  const description = await ensureDescription(
+    symbol,
+    ticker.name,
+    profile,
+  ).catch(() => null);
 
   const rows = await db()
     .select({
@@ -175,10 +182,78 @@ export default async function TickerPage({ params }: PageProps<"/t/[symbol]">) {
         </section>
       ) : null}
 
+      {/* ---- Signals ----------------------------------------------------- */}
+      <h2 className="mb-2 text-[14px] font-semibold">
+        Signals for {symbol}{" "}
+        <span className="font-normal text-muted-foreground">({rows.length})</span>
+      </h2>
+
+      {rows.length === 0 ? (
+        <StatePanel
+          title="No signals for this company yet"
+          body="It will appear here as soon as one of the 40 sources publishes something about it."
+        />
+      ) : (
+        <TableScroller>
+          <table className="table-dense w-full border-collapse">
+            <thead>
+              <tr>
+                <th className="text-left">Headline</th>
+                <th className="text-left">Type</th>
+                <th className="text-left">Direction</th>
+                <th className="text-left">Score</th>
+                <th className="text-right">Age</th>
+                <th className="text-left">Source</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.id}>
+                  <td className="max-w-[560px] align-top">
+                    <a
+                      href={r.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:underline"
+                    >
+                      {r.title}
+                    </a>
+                    <div className="mt-1 max-w-[560px] text-[12px] text-muted-foreground">
+                      {r.rationale}
+                    </div>
+                  </td>
+                  <td className="whitespace-nowrap align-top text-[13px] text-muted-foreground">
+                    {EVENT_TYPE_LABEL[r.eventType as EventType]}
+                  </td>
+                  <td className="align-top">
+                    <DirectionBadge direction={r.direction as Direction} />
+                  </td>
+                  <td className="align-top">
+                    <SignalScore
+                      score={Number(r.score)}
+                      direction={r.direction as Direction}
+                    />
+                  </td>
+                  <td className="num align-top text-right text-muted-foreground">
+                    {formatAge(r.publishedAt)}
+                  </td>
+                  <td className="whitespace-nowrap align-top text-[13px] text-muted-foreground">
+                    {r.sourceName}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </TableScroller>
+      )}
+
       {/* ---- Company + risk context -------------------------------------- */}
       <div className="mb-5 grid gap-3 lg:grid-cols-2">
         <section className="rounded-lg border border-border bg-card p-4">
           <h2 className="mb-2 text-[13px] font-semibold">About the company</h2>
+          {description ? (
+            <p className="mb-3 text-[13px] leading-relaxed">{description}</p>
+          ) : null}
           {profile ? (
             <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-[13px]">
               <Meta label="Industry" value={profile.industry ?? "—"} />
@@ -274,6 +349,7 @@ export default async function TickerPage({ params }: PageProps<"/t/[symbol]">) {
         </section>
       </div>
 
+
       {/* ---- Plain-language explainer ----------------------------------- */}
       <section className="mb-5 rounded-lg border border-border bg-surface p-4">
         <h2 className="mb-2 text-[13px] font-semibold">
@@ -309,70 +385,6 @@ export default async function TickerPage({ params }: PageProps<"/t/[symbol]">) {
         </dl>
       </section>
 
-      {/* ---- Signals ----------------------------------------------------- */}
-      <h2 className="mb-2 text-[14px] font-semibold">
-        Signals for {symbol}{" "}
-        <span className="font-normal text-muted-foreground">({rows.length})</span>
-      </h2>
-
-      {rows.length === 0 ? (
-        <StatePanel
-          title="No signals for this company yet"
-          body="It will appear here as soon as one of the 40 sources publishes something about it."
-        />
-      ) : (
-        <TableScroller>
-          <table className="table-dense w-full border-collapse">
-            <thead>
-              <tr>
-                <th className="text-left">Headline</th>
-                <th className="text-left">Type</th>
-                <th className="text-left">Direction</th>
-                <th className="text-left">Score</th>
-                <th className="text-right">Age</th>
-                <th className="text-left">Source</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.id}>
-                  <td className="max-w-[560px] align-top">
-                    <a
-                      href={r.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="hover:underline"
-                    >
-                      {r.title}
-                    </a>
-                    <div className="mt-1 max-w-[560px] text-[12px] text-muted-foreground">
-                      {r.rationale}
-                    </div>
-                  </td>
-                  <td className="whitespace-nowrap align-top text-[13px] text-muted-foreground">
-                    {EVENT_TYPE_LABEL[r.eventType as EventType]}
-                  </td>
-                  <td className="align-top">
-                    <DirectionBadge direction={r.direction as Direction} />
-                  </td>
-                  <td className="align-top">
-                    <SignalScore
-                      score={Number(r.score)}
-                      direction={r.direction as Direction}
-                    />
-                  </td>
-                  <td className="num align-top text-right text-muted-foreground">
-                    {formatAge(r.publishedAt)}
-                  </td>
-                  <td className="whitespace-nowrap align-top text-[13px] text-muted-foreground">
-                    {r.sourceName}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </TableScroller>
-      )}
     </>
   );
 }

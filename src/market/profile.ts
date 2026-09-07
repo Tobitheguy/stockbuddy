@@ -20,6 +20,7 @@ export type CompanyProfile = {
   website: string | null;
   ipoDate: string | null;
   marketCapM: number | null;
+  description: string | null;
 };
 
 type FinnhubProfile = {
@@ -100,6 +101,7 @@ function toProfile(row: {
   website: string | null;
   ipoDate: string | null;
   marketCapM: string | null;
+  description?: string | null;
 }): CompanyProfile {
   return {
     symbol: row.symbol,
@@ -109,7 +111,73 @@ function toProfile(row: {
     website: row.website,
     ipoDate: row.ipoDate,
     marketCapM: row.marketCapM === null ? null : Number(row.marketCapM),
+    description: row.description ?? null,
   };
+}
+
+/**
+ * Two-to-three sentence description of what the company does, in language a
+ * non-expert can follow. Written once by Haiku, cached forever in the
+ * profiles table — roughly a tenth of a cent per company, spent only when the
+ * user actually opens that company's page.
+ *
+ * Facts-only by instruction: the description must never editorialise about
+ * the stock, because it sits directly above signals that do make claims and
+ * the two kinds of text must not blur.
+ */
+export async function ensureDescription(
+  symbol: string,
+  companyName: string,
+  profile: CompanyProfile | null,
+): Promise<string | null> {
+  if (profile?.description) return profile.description;
+  if (!process.env.ANTHROPIC_API_KEY) return null;
+
+  try {
+    const { default: Anthropic } = await import("@anthropic-ai/sdk");
+    const client = new Anthropic();
+    const response = await client.messages.create({
+      model: "claude-haiku-4-5",
+      max_tokens: 300,
+      system:
+        "Write 2-3 short sentences explaining what a company does, for " +
+        "someone with no finance background. Plain words, no jargon, no " +
+        "opinions about the stock, no numbers you are not sure of. Just: " +
+        "what they make or do, who pays them, and how they earn money.",
+      messages: [
+        {
+          role: "user",
+          content:
+            `Company: ${companyName} (ticker ${symbol}` +
+            (profile?.industry ? `, industry: ${profile.industry}` : "") +
+            `)`,
+        },
+      ],
+    });
+
+    const text = response.content
+      .map((b) => (b.type === "text" ? b.text : ""))
+      .join(" ")
+      // The model sometimes leads with a markdown heading repeating the
+      // company name; the page already shows the name, so strip any heading
+      // lines and inline markdown markers.
+      .replace(/^#{1,6} .*$/gm, "")
+      .replace(/\*\*/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (text.length < 30) return null;
+
+    await db()
+      .insert(tickerProfiles)
+      .values({ symbol, description: text })
+      .onConflictDoUpdate({
+        target: tickerProfiles.symbol,
+        set: { description: text },
+      });
+    return text;
+  } catch {
+    return null;
+  }
 }
 
 /** "small cap" / "large cap" — the size bucket, for plain-language risk text. */

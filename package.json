@@ -26,7 +26,8 @@
     "status": "tsx scripts/edgar-status.ts",
     "rescore": "tsx scripts/rescore.ts",
     "anatomy": "tsx scripts/score-anatomy.ts",
-    "reprocess-filings": "tsx scripts/reprocess-filings.ts"
+    "reprocess-filings": "tsx scripts/reprocess-filings.ts",
+    "daemon": "tsx scripts/daemon.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",

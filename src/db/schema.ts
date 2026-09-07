@@ -531,6 +531,13 @@ export const tickerProfiles = pgTable("ticker_profiles", {
   ipoDate: date("ipo_date"),
   /** In millions of USD, as the provider reports it. */
   marketCapM: numeric("market_cap_m", { precision: 16, scale: 2 }),
+  /**
+   * Two-to-three plain-language sentences on what the company actually does,
+   * written once by Haiku and cached forever. No data provider on the free
+   * tier ships a description, and "Industry: Energy" tells a non-expert
+   * nothing about whether Frontline drills oil, refines it, or ships it.
+   */
+  description: text("description"),
   fetchedAt: timestamp("fetched_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

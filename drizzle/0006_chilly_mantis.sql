@@ -1,0 +1,1 @@
+ALTER TABLE "ticker_profiles" ADD COLUMN "description" text;
