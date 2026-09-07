@@ -277,6 +277,11 @@ function usaSpendingBody(): string {
       "Awarding Agency",
       "Awarding Sub Agency",
       "Start Date",
+      // The date the award was actually acted on. "Start Date" is the period
+      // of performance start, which on a renewal can be decades old — one
+      // award in the live data carried 1978 and decayed to nothing the moment
+      // it was ingested.
+      "Last Modified Date",
       "Description",
     ],
     page: 1,
@@ -284,6 +289,30 @@ function usaSpendingBody(): string {
     sort: "Award Amount",
     order: "desc",
   });
+}
+
+/**
+ * When this award became news.
+ *
+ * The query filters to actions in the last seven days, so by construction
+ * every result IS recent — but "Start Date" is the period-of-performance
+ * start, which on a renewed contract can be decades earlier. Using it made
+ * genuinely fresh multi-billion-dollar awards arrive pre-decayed to zero, and
+ * put a 1978 timestamp in the database.
+ *
+ * Prefer the modification date; fall back to the start date only when it is
+ * plausibly recent; otherwise treat it as new, which the query guarantees.
+ */
+function awardDate(a: UsaSpendingAward): Date {
+  const record = a as Record<string, unknown>;
+  const modified = parseDate(String(record["Last Modified Date"] ?? "")).date;
+  const windowStart = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  if (modified && modified.getTime() > windowStart) return modified;
+
+  const start = parseDate(String(record["Start Date"] ?? "")).date;
+  if (start && start.getTime() > windowStart) return start;
+
+  return new Date();
 }
 
 function usaSpending(json: unknown): FetchResult {
@@ -317,7 +346,7 @@ function usaSpending(json: unknown): FetchResult {
       title: `${recipient} awarded ${amountLabel} federal contract`,
       summary: cap(summary, MAX_SUMMARY_CHARS),
       body: cap(summary, MAX_BODY_CHARS),
-      publishedAt: parseDate(String(a["Start Date"] ?? "")).date,
+      publishedAt: awardDate(a),
     });
   }
   return { items, warnings: [] };

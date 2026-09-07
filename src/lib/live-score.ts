@@ -29,12 +29,21 @@ export function liveScore(): SQL<number> {
     coalesce(${sql.raw("signals.base_score")}, ${sql.raw("signals.score")})
     * power(
         0.5,
-        /* greatest(...,0) mirrors the clamp on future timestamps: feeds do
-           publish them, and a negative age would raise the power above 1 and
-           let a mis-stamped item outrank everything real. */
-        greatest(
-          extract(epoch from (now() - ${sql.raw("items.published_at")})) / 3600.0,
-          0
+        /* Both clamps are load-bearing.
+           greatest(...,0) mirrors the future-timestamp guard in recencyDecay:
+           feeds do publish them, and a negative age would raise the power
+           above 1 and let a mis-stamped item outrank everything real.
+           least(...,8760) caps the age at a year. Postgres numeric has no
+           underflow, so power(0.5, 1660) returns a literal 500-digit
+           fraction — one USASpending award carrying a 1978 date was enough to
+           blow up any query that cast the result to a float. A year of decay
+           is already indistinguishable from zero for ranking. */
+        least(
+          greatest(
+            extract(epoch from (now() - ${sql.raw("items.published_at")})) / 3600.0,
+            0
+          ),
+          8760
         ) / ${HALF_LIFE_SQL}
       )`;
 }

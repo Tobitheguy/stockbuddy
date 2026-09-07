@@ -6,6 +6,7 @@ import { DirectionBadge } from "@/components/direction-badge";
 import { PageTitle, StatePanel, TableScroller } from "@/components/page-shell";
 import { SignalScore } from "@/components/signal-score";
 import { formatAge } from "@/lib/format";
+import { liveScore } from "@/lib/live-score";
 import { HELD_ALERT_MIN, RARE_ALERT_MIN } from "@/alerts/engine";
 import type { Direction } from "@/lib/types";
 
@@ -28,7 +29,12 @@ export default async function AlertsPage() {
       symbol: signals.symbol,
       sector: signals.sector,
       direction: signals.direction,
-      score: sql<string>`coalesce(${signals.baseScore}, ${signals.score})`,
+      // The live score, exactly as the feed computes it, plus the score the
+      // alert actually fired on. Showing only the peak here made this page
+      // disagree with the feed — an alert reading 72 while the same signal sat
+      // at 32 on the front page, with nothing to explain the gap.
+      score: liveScore(),
+      peakScore: signals.baseScore,
       rationale: signals.rationale,
       title: items.title,
       url: items.canonicalUrl,
@@ -114,8 +120,8 @@ export default async function AlertsPage() {
                   <td className="align-top">
                     <SignalScore
                       score={Number(r.score)}
+                      peakScore={r.peakScore === null ? undefined : Number(r.peakScore)}
                       direction={r.direction as Direction}
-                      showBand={false}
                     />
                   </td>
                   <td className="max-w-[460px] align-top">
