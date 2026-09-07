@@ -17,6 +17,7 @@ import {
   type ScoredSignal,
 } from "@/llm/client";
 import { SCORE_PROMPT_VERSION } from "@/llm/prompts";
+import { fetchFilingText } from "@/sources/edgar-document";
 import { buildNameIndex, matchTickers, type TickerMatch } from "./ticker-match";
 
 /**
@@ -107,8 +108,10 @@ export async function runProcess(
       title: items.title,
       summary: items.summary,
       body: items.bodyText,
+      url: items.canonicalUrl,
       publishedAt: items.publishedAt,
       sourceName: sources.name,
+      sourceKind: sources.kind,
       qualityWeight: sources.qualityWeight,
     })
     .from(items)
@@ -223,19 +226,48 @@ type QueueItem = {
   title: string;
   summary: string | null;
   body: string | null;
+  url: string;
   publishedAt: Date;
   sourceName: string;
+  sourceKind: "rss" | "api" | "edgar";
   qualityWeight: string;
 };
 
+/**
+ * Load the filing text for an EDGAR item that is about to be scored.
+ *
+ * EDGAR's feed gives a form type and a byte count, nothing else. Scoring a
+ * merger from `425 - SYSCO CORP … Size: 974 KB` asks the model to price a deal
+ * it cannot see, and it correctly answers with low confidence — which is how
+ * genuinely major filings ended up scored in the teens.
+ *
+ * The fetch is deliberate about when it runs: only for items already selected
+ * for a model call, so it never adds SEC traffic for items we score with
+ * rules. The result is written back to `items.bodyText`, so a re-process or a
+ * second signal on the same filing costs nothing further.
+ */
+async function enrichFilingBody(item: QueueItem): Promise<QueueItem> {
+  if (item.sourceKind !== "edgar" || item.body) return item;
+
+  const text = await fetchFilingText(item.url);
+  if (!text) return item;
+
+  await db().update(items).set({ bodyText: text }).where(eq(items.id, item.id));
+  return { ...item, body: text };
+}
+
 async function modelScore(
-  item: QueueItem,
+  queued: QueueItem,
   runId: number,
   scoreModel: string,
   known: ReadonlySet<string>,
   now: Date,
 ): Promise<{ created: number; secondOrder: number; cost: number; triagedOut: boolean }> {
   let cost = 0;
+
+  // Before triage, not after: a filing triaged out on its filename alone is a
+  // signal lost permanently, and the extra tokens cost a fraction of a cent.
+  const item = await enrichFilingBody(queued);
 
   const t = await triage(item, runId);
   cost += t.cost;

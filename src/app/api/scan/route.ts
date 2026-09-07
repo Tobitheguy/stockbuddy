@@ -17,7 +17,7 @@ import { runScan } from "@/ingest/scan";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
-export async function POST(request: Request) {
+async function handle(request: Request) {
   const auth = checkCronAuth(request);
   if (!auth.ok) {
     return NextResponse.json(
@@ -47,10 +47,10 @@ export async function POST(request: Request) {
   }
 }
 
-/** GET returns 405 so a browser visit cannot trigger a scan by accident. */
-export async function GET() {
-  return NextResponse.json(
-    { error: "Use POST with an Authorization: Bearer header." },
-    { status: 405 },
-  );
-}
+/**
+ * Vercel Cron invokes scheduled paths with GET, so GET must do the work. A
+ * casual browser visit still cannot trigger a scan: without the bearer token
+ * it gets a 401 before anything is fetched.
+ */
+export const GET = handle;
+export const POST = handle;

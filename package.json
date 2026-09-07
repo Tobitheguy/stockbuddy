@@ -18,7 +18,9 @@
     "scan": "tsx scripts/scan.ts",
     "process": "tsx scripts/process.ts",
     "sync:tickers": "tsx scripts/sync-tickers.ts",
-    "prices": "tsx scripts/refresh-prices.ts"
+    "prices": "tsx scripts/refresh-prices.ts",
+    "set-password": "tsx scripts/set-password.ts",
+    "outcomes": "tsx scripts/outcomes.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",
@@ -43,6 +45,7 @@
     "@types/node": "^24.13.3",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vercel/config": "^0.7.0",
     "dotenv": "^17.4.2",
     "drizzle-kit": "^0.31.10",
     "eslint": "^9",

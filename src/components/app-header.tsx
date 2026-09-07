@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { logout } from "@/auth/actions";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -19,6 +20,11 @@ function isActive(pathname: string, href: string) {
 
 export function AppHeader() {
   const pathname = usePathname();
+
+  // On the login page there is nothing to navigate to and nothing to sign out
+  // of. Rendering the nav there would show links that all bounce straight back
+  // to this page.
+  const authenticated = pathname !== "/login";
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-card/90 backdrop-blur-sm">
@@ -41,7 +47,7 @@ export function AppHeader() {
           aria-label="Primary"
           className="flex min-w-0 items-center gap-1 overflow-x-auto"
         >
-          {NAV.map((item) => {
+          {(authenticated ? NAV : []).map((item) => {
             const active = isActive(pathname, item.href);
             return (
               <Link
@@ -66,6 +72,16 @@ export function AppHeader() {
           {/* Standing reminder of what this tool is. It is deliberately part of
               the chrome rather than a dismissible banner. */}
           <span className="hidden sm:inline">Research only — not advice</span>
+          {authenticated ? (
+            <form action={logout}>
+              <button
+                type="submit"
+                className="rounded-md px-2 py-1 text-[11px] transition-colors hover:bg-surface hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              >
+                Sign out
+              </button>
+            </form>
+          ) : null}
         </div>
       </div>
     </header>

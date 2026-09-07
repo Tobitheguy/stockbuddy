@@ -3,7 +3,7 @@ import { checkCronAuth } from "@/lib/cron-auth";
 import { runProcess } from "@/ingest/process";
 
 /**
- * POST /api/process — turn ingested items into signals.
+ * GET/POST /api/process — turn ingested items into signals.
  *
  * Separate from /api/scan on purpose: fetching and scoring fail for different
  * reasons and have very different cost profiles. A model outage must not stop
@@ -12,7 +12,7 @@ import { runProcess } from "@/ingest/process";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
-export async function POST(request: Request) {
+async function handle(request: Request) {
   const auth = checkCronAuth(request);
   if (!auth.ok) {
     return NextResponse.json({ error: auth.message }, { status: auth.status });
@@ -34,9 +34,12 @@ export async function POST(request: Request) {
   }
 }
 
-export async function GET() {
-  return NextResponse.json(
-    { error: "Use POST with an Authorization: Bearer header." },
-    { status: 405 },
-  );
-}
+/**
+ * Vercel Cron invokes scheduled paths with GET, so GET must do the work rather
+ * than return 405 — an earlier version of this file rejected it, which would
+ * have left every scheduled run failing with a 405 in the logs while the app
+ * itself looked healthy. The bearer check is what keeps it closed, not the
+ * HTTP verb.
+ */
+export const GET = handle;
+export const POST = handle;
