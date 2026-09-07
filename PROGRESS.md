@@ -70,7 +70,7 @@ Living status doc. Updated at every checkpoint.
 - **Theme switched from dark to light.** Warm white page, near-black text,
   14px base (was 13px), more row padding, zebra striping. Bullish/bearish
   darkened so they still clear contrast requirements against white.
-- **Sources: 12 → 30** (22 verified live, 22 enabled). Newly verified live: SEC 13D, 13G, S-1, SEC press
+- **Sources: 12 → 38** (26 verified live, 25 enabled). Newly verified live: SEC 13D, 13G, S-1, SEC press
   releases, FDA, FTC competition, USTR, EIA, BLS, WSJ Markets, Yahoo Finance,
   MarketWatch. Reddit seeded but disabled. See `docs/social-media.md` for why
   X, Instagram and Facebook are not in the list.
@@ -104,6 +104,9 @@ Living status doc. Updated at every checkpoint.
 | Theme | **Light**, 14px base | Changed on request. Readability over aesthetics — this is a page you read for a long time. |
 | Instagram / Facebook | **Not possible** | Meta killed CrowdTangle in Aug 2024; its replacement is restricted to approved academic and nonprofit researchers. The Graph API only returns data about accounts you own. No legitimate path exists at any price. |
 | X (Twitter) | **Deferred, not refused** | Legitimate but metered at ~$0.005/read since Feb 2026. Even a narrow 50-account setup costs ~$150/mo — more than the entire rest of the platform — for a source that mostly echoes news the filings already gave us. Revisit once `/stats` shows whether early chatter is actually the gap. |
+| Legacy media outlets | **~10, not hundreds** | Outlets are downstream of the sources we already read: their market-moving facts come from EDGAR, the wires and the regulators, which we ingest directly and minutes earlier. Probing NBC/Fortune/MarketWatch confirmed it — most items were general interest, and the one macro story was BLS data we already pull from BLS. Modelled marginal cost of 100 extra outlets is ~$116/mo for mostly-duplicate content. See `docs/source-strategy.md`. |
+| LLM budget | **$2/day → $6/day** | The $2 figure predated any cost arithmetic and was wrong: modelled spend for the current list is $5–10/day. Corrected in `.env.example` with the model shown. |
+| Cost control | Rule prefilter + story-level dedupe **before** triage | Dropping routine Form 4 vesting, non-English and non-US items costs nothing and removes ~65% of volume. Clustering the same story across outlets is the difference between ~$285/mo and ~$757/mo. Both move from "nice to have" to required. |
 | Reddit | Seeded, disabled, lowest weight | Free and legitimate, so it clears the bar. But retail chatter is mostly reaction to news already in the other feeds; enabling it early would flood the feed and inflate the LLM bill during calibration. |
 | Watchlist price tracking | Record `price_at_add`, show return since | Directly answers "is this tool reliable" for the user's own decisions, not just for the model's signals. |
 | Seed fields vs DB columns | `store_body` becomes a real column on `sources`; `verified` and `notes` stay seed-only | Raised by review. `store_body` is enforced at ingest time on every scan, so it has to live in the DB. `verified`/`notes` are build-time provenance about how the source list was assembled — they belong in version control, not in a row that a runtime toggle could contradict. |
