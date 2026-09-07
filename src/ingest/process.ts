@@ -82,7 +82,7 @@ export type ProcessSummary = {
 const BATCH_SIZE = 400;
 
 export async function runProcess(
-  opts: { limit?: number } = {},
+  opts: { limit?: number; deadlineMs?: number } = {},
 ): Promise<ProcessSummary> {
   const database = db();
   const mode = scoringMode();
@@ -139,7 +139,28 @@ export async function runProcess(
   // round-trip to every single call for a number that only this loop changes.
   let spentToday = await todaysLlmSpendUsd();
 
-  for (const item of queue) {
+  /**
+   * Stop before the platform kills the invocation.
+   *
+   * Scoring an item takes roughly eight seconds, so a batch of seventy needs
+   * ten minutes — far past any serverless limit. Being killed mid-loop leaves
+   * the run row open forever and, worse, silently loses the accounting for
+   * whatever was already spent. Finishing early is free: `processedAt` is set
+   * per item, so the next run picks up exactly where this one stopped.
+   */
+  const deadline = opts.deadlineMs ? startedAt + opts.deadlineMs : Infinity;
+  let ranOutOfTime = false;
+  let itemsLeft = 0;
+
+  for (const [index, item] of queue.entries()) {
+    // A model call can take a while; leave enough room to finish the one in
+    // flight and still write the run row.
+    if (Date.now() > deadline) {
+      ranOutOfTime = true;
+      itemsLeft = queue.length - index;
+      break;
+    }
+
     const haystack = `${item.title}\n${item.summary ?? ""}`;
     const matches = matchTickers(haystack, known, nameIndex, cikIndex);
     if (matches.length > 0) itemsWithTickers++;
@@ -194,21 +215,33 @@ export async function runProcess(
     );
   }
 
+  const notes = [
+    haltedOnBudget ? "halted: daily LLM budget reached" : null,
+    ranOutOfTime ? `stopped on time limit, ${itemsLeft} item(s) left` : null,
+  ].filter(Boolean);
+
+  if (ranOutOfTime) {
+    console.warn(
+      `[process] time limit reached after ${queue.length - itemsLeft} of ` +
+        `${queue.length} items. The remainder stays queued for the next run.`,
+    );
+  }
+
   await database
     .update(scanRuns)
     .set({
       finishedAt: new Date(),
-      itemsNew: queue.length,
+      itemsNew: queue.length - itemsLeft,
       signalsNew: signalsCreated,
       llmCostUsd: Math.max(0, llmCostUsd).toFixed(6),
-      error: haltedOnBudget ? "halted: daily LLM budget reached" : null,
+      error: notes.length > 0 ? notes.join("; ") : null,
     })
     .where(eq(scanRuns.id, run.id));
 
   return {
     runId: run.id,
     mode,
-    itemsConsidered: queue.length,
+    itemsConsidered: queue.length - itemsLeft,
     itemsWithTickers,
     itemsSentToModel,
     itemsTriagedOut,

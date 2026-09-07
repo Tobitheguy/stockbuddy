@@ -10,7 +10,23 @@ import { runProcess } from "@/ingest/process";
  * ingestion, and a blocked feed must not stop scoring the backlog.
  */
 export const dynamic = "force-dynamic";
-export const maxDuration = 300;
+
+/**
+ * Scoring is the slow job: roughly eight seconds per item through triage plus
+ * Opus, so a batch of seventy takes ten minutes. At the previous 300s the
+ * function was killed mid-loop on every busy run, leaving an unfinished run
+ * row and no record of what had been spent.
+ */
+export const maxDuration = 800;
+
+/**
+ * Stop before the NEXT scheduled run starts, not merely before the platform
+ * limit. The cron fires every ten minutes; a run allowed to reach 800s would
+ * still be scoring when its successor began, and two runs pulling the same
+ * queue would pay a model twice for the same item before either marked it
+ * processed. 540s leaves a minute of margin either side.
+ */
+const SOFT_DEADLINE_MS = 540_000;
 
 async function handle(request: Request) {
   const auth = checkCronAuth(request);
@@ -22,7 +38,7 @@ async function handle(request: Request) {
   const limit = limitParam ? Math.min(2000, Number(limitParam) || 0) : undefined;
 
   try {
-    const summary = await runProcess({ limit });
+    const summary = await runProcess({ limit, deadlineMs: SOFT_DEADLINE_MS });
     return NextResponse.json(summary);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
