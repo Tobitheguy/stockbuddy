@@ -115,8 +115,19 @@ export const SCORE_SCHEMA = {
           },
           eventType: { type: "string", enum: [...EVENT_TYPES] },
           direction: { type: "string", enum: [...DIRECTIONS] },
-          magnitude: { type: "integer", minimum: 1, maximum: 5 },
-          confidence: { type: "number", minimum: 0, maximum: 1 },
+          // NOTE: the structured-output schema does not accept `minimum` /
+          // `maximum` on numeric types — the API rejects the request outright.
+          // The ranges are therefore stated in the description, where the
+          // model does read them, and enforced by Zod plus a database CHECK.
+          magnitude: {
+            type: "integer",
+            description: "How much this could move the stock, from 1 to 5.",
+          },
+          confidence: {
+            type: "number",
+            description:
+              "How sure the reasoning is, from 0 to 1. Use the full range.",
+          },
           horizon: { type: "string", enum: [...HORIZONS] },
           rationale: {
             type: "string",

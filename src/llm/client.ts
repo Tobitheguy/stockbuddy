@@ -170,8 +170,13 @@ const ScoredSignal = z.object({
   sector: z.string(),
   eventType: z.enum(EVENT_TYPES),
   direction: z.enum(DIRECTIONS),
-  magnitude: z.number().int().min(1).max(5),
-  confidence: z.number().min(0).max(1),
+  // Clamped rather than rejected. A magnitude of 6 is a calibration miss, not
+  // a malformed response, and throwing away a good rationale over it would
+  // waste the call that produced it. The database CHECK is the final guard.
+  magnitude: z
+    .number()
+    .transform((n) => Math.min(5, Math.max(1, Math.round(n)))),
+  confidence: z.number().transform((n) => Math.min(1, Math.max(0, n))),
   horizon: z.enum(HORIZONS),
   rationale: z.string().min(1),
   isSecondOrder: z.boolean(),
