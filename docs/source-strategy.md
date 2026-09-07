@@ -92,6 +92,41 @@ what it buys is mostly the same stories we already have, arriving later.
 
 ---
 
+## Correction: what the prefilter actually removes (measured 2026-09-06)
+
+The table above assumes a rule-based prefilter removing ~65% of raw volume.
+**Measured against 1,074 real items, it removes 0.7%.** That estimate was
+wrong, and the reason is worth recording rather than quietly restating.
+
+| Rule | Modelled | Actual | Why |
+|---|---|---|---|
+| Routine Form 4 vesting | the bulk of the saving | **0** | EDGAR's Atom feed carries only `Filed by: X. Form type: 4. AccNo: … Size: 6 KB`. The transaction codes and any 10b5-1 reference are inside the filing document, which the scanner does not fetch. The rule is correct and tested; it has nothing to match on. |
+| Not US-listed | large | **0** | Needs ticker matching, which arrives in Step 4. |
+| Non-English | small | 4 | Working as intended. |
+| Administrative | small | 3 | Working as intended. |
+| Duplicate story | large | **0** | Now correctly restricted to editorial sources (see below). Across one window, the same headline had not yet appeared at two outlets. |
+
+**Consequence: costs will run higher than the table above until Step 4.** The
+two rules that would remove the most volume both depend on work that has not
+happened yet. That is a scheduling fact, not a broken design — but the earlier
+number should not be quoted as if it were measured.
+
+### And a real bug the measurement exposed
+
+Story clustering was applied to every source. EDGAR titles are formulaic —
+six separate Form 4 filings by six different Veracyte insiders all carry the
+title `4 - VERACYTE, INC. (0001384101) (Issuer)` — so clustering merged them
+and **discarded five genuine filings**. Two different Stewards 8-Ks went the
+same way. 51 items in total.
+
+This is precisely the silent-signal-loss failure the design document warned
+about, and it happened within an hour of shipping. Clustering is now limited
+to editorial sources (`kind: "rss"`), where a near-identical headline really
+does mean a second outlet carrying the same story. The 51 items were restored,
+and there is a regression test using the real Veracyte title.
+
+---
+
 ## What actually makes this cheaper *and* better
 
 Not fewer sources. Better filtering before the expensive part.

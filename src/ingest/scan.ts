@@ -55,6 +55,19 @@ function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
   ]);
 }
 
+/**
+ * Story clustering is for EDITORIAL sources only.
+ *
+ * `kind: "rss"` is exactly the wires and news outlets — the places where a
+ * near-identical headline really does mean a second outlet carrying the same
+ * story. EDGAR (`kind: "edgar"`) and the structured databases (`kind: "api"`)
+ * have formulaic titles where identical wording is normal and means nothing,
+ * so clustering there destroys real filings. See the note in prefilter.ts.
+ */
+function allowsStoryClustering(source: Source): boolean {
+  return source.kind === "rss";
+}
+
 async function fetchSource(source: Source) {
   const opts = { storeBody: source.storeBody };
   switch (source.kind) {
@@ -267,6 +280,7 @@ async function persist(
       sourceName: source.name,
       storyKey: key,
       seenStoryKeys,
+      allowStoryClustering: allowsStoryClustering(source),
     });
 
     // Claim the story key so later sources in the same run see it taken.

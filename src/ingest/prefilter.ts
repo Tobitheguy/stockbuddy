@@ -68,8 +68,22 @@ const NON_ENGLISH_RE = new RegExp(
  * A scheduled RSU vesting, or a same-day sale purely to cover tax withholding,
  * tells you nothing — the insider had no choice about the timing. An
  * unplanned open-market purchase is one of the few genuinely informative
- * insider signals, so the rules below are written to match ONLY the routine
- * case and to bail out the moment anything looks discretionary.
+ * insider signals, so the rules below match ONLY the routine case and bail out
+ * the moment anything looks discretionary.
+ *
+ * ⚠️ CURRENTLY INERT ON LIVE DATA, and this is worth knowing before trusting
+ * any cost estimate that assumes otherwise.
+ *
+ * EDGAR's Atom feed gives us only:
+ *   "Filed by: WRAP TECHNOLOGIES, INC. (CIK 0001702924). Form type: 4.
+ *    Filed: 2026-09-04 AccNo: 0001493152-26-041638 Size: 6 KB"
+ *
+ * The transaction codes and any 10b5-1 reference live inside the filing
+ * document, which the scanner does not fetch. So this rule matches nothing
+ * today. It is kept because it is correct and tested, and because Step 4 has
+ * to decide whether to fetch the Form 4 XML — roughly one extra request per
+ * filing against the SEC rate limit, in exchange for dropping most of the
+ * single highest-volume source in the system before it reaches a model.
  */
 const ROUTINE_INSIDER_RE =
   /\b(?:10b5-1|rule 10b5|automatic (?:sale|disposition)|tax withholding|withholding obligation|scheduled vesting|restricted stock unit vesting|rsu vesting|net share settlement|share settlement to cover)\b/i;
@@ -94,6 +108,25 @@ export type PrefilterInput = {
   storyKey: string | null;
   /** Story keys already seen in this scan or recently in the database. */
   seenStoryKeys?: ReadonlySet<string>;
+  /**
+   * Whether cross-source story clustering may be applied to this source.
+   *
+   * Only true for EDITORIAL sources — news outlets and press wires — where a
+   * near-identical headline genuinely means a second outlet carrying the same
+   * story.
+   *
+   * It must be FALSE for EDGAR and the structured databases, where titles are
+   * formulaic and identical wording is normal. This was found the hard way on
+   * live data: six separate Veracyte Form 4 filings, by six different
+   * insiders, all carry the title "4 - VERACYTE, INC. (0001384101) (Issuer)".
+   * Clustering merged them and silently discarded five real filings. Two
+   * genuinely different Stewards 8-Ks went the same way.
+   *
+   * There is no cross-outlet duplication to catch on EDGAR anyway — it is the
+   * only publisher of its own filings, and the accession number in the URL is
+   * already a perfect identity.
+   */
+  allowStoryClustering: boolean;
 };
 
 export function prefilter(input: PrefilterInput): PrefilterResult {
@@ -125,8 +158,13 @@ export function prefilter(input: PrefilterInput): PrefilterResult {
   }
 
   // Cross-source story clustering. The first arrival wins and is scored; later
-  // copies from other outlets are recorded and skipped.
-  if (input.storyKey && input.seenStoryKeys?.has(input.storyKey)) {
+  // copies from other outlets are recorded and skipped. Editorial sources
+  // only — see the note on allowStoryClustering.
+  if (
+    input.allowStoryClustering &&
+    input.storyKey &&
+    input.seenStoryKeys?.has(input.storyKey)
+  ) {
     return { drop: true, reason: "duplicate_story" };
   }
 

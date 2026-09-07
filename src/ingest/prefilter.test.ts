@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 import { prefilter } from "./prefilter";
 import { storyKey } from "@/lib/hash";
 
-const base = { sourceName: "GlobeNewswire - Public Companies", storyKey: null };
+const base = {
+  sourceName: "GlobeNewswire - Public Companies",
+  storyKey: null,
+  allowStoryClustering: true,
+};
 
 describe("prefilter — what it drops", () => {
   it("drops Danish insider notices from the wire feeds", () => {
@@ -16,6 +20,7 @@ describe("prefilter — what it drops", () => {
     const r = prefilter({
       ...base,
       sourceName: "Federal Register",
+      allowStoryClustering: false,
       title: "Sunshine Act Meetings",
     });
     expect(r).toEqual({ drop: true, reason: "administrative" });
@@ -25,6 +30,7 @@ describe("prefilter — what it drops", () => {
     const r = prefilter({
       sourceName: "SEC EDGAR Form 4",
       storyKey: null,
+      allowStoryClustering: false,
       title: "4 - Officer routine equity award",
       summary:
         "Acquired 4,120 shares pursuant to a previously scheduled restricted stock unit vesting and disposed of 1,806 shares to satisfy tax withholding obligations. Executed under a Rule 10b5-1 trading plan.",
@@ -61,6 +67,7 @@ describe("prefilter — what it must NEVER drop", () => {
     const r = prefilter({
       sourceName: "SEC EDGAR Form 4",
       storyKey: null,
+      allowStoryClustering: false,
       title: "4 - Chief Executive Officer open-market purchase, $4.1 million",
       summary:
         "Reporting person acquired 210,000 shares in an open-market purchase at a weighted average price of $19.52. No trading plan is referenced.",
@@ -73,6 +80,7 @@ describe("prefilter — what it must NEVER drop", () => {
     const r = prefilter({
       sourceName: "SEC EDGAR Form 4",
       storyKey: null,
+      allowStoryClustering: false,
       title: "4 - Director purchase",
       summary:
         "Purchased 50,000 shares on the open market. Reporting person also maintains a Rule 10b5-1 plan for unrelated dispositions.",
@@ -86,6 +94,7 @@ describe("prefilter — what it must NEVER drop", () => {
     const r = prefilter({
       sourceName: "SEC EDGAR 8-K",
       storyKey: null,
+      allowStoryClustering: false,
       title: "8-K - UND Holdings Der Corp (0001234567) (Filer)",
     });
     expect(r.drop).toBe(false);
@@ -131,5 +140,39 @@ describe("prefilter — what it must NEVER drop", () => {
       seenStoryKeys: new Set(),
     });
     expect(r.drop).toBe(false);
+  });
+});
+
+describe("prefilter — the EDGAR clustering regression", () => {
+  // Found on live data an hour after shipping: EDGAR titles are formulaic, so
+  // six SEPARATE Form 4 filings by six different Veracyte insiders all carry
+  // the identical title. Clustering merged them and discarded five real
+  // filings — the exact silent-signal-loss failure the design warns about.
+  const EDGAR_TITLE = "4 - VERACYTE, INC. (0001384101) (Issuer)";
+
+  it("does NOT cluster identical EDGAR titles", () => {
+    const key = storyKey(EDGAR_TITLE);
+    const second = prefilter({
+      sourceName: "SEC EDGAR Form 4",
+      title: EDGAR_TITLE,
+      storyKey: key,
+      seenStoryKeys: new Set(key ? [key] : []),
+      allowStoryClustering: false,
+    });
+    expect(second.drop).toBe(false);
+  });
+
+  it("still clusters identical headlines from editorial sources", () => {
+    // The rule must stay off for EDGAR without disabling the feature itself.
+    const title = "Nucor Announces $2.6 Billion Steel Mill Investment";
+    const key = storyKey(title)!;
+    const second = prefilter({
+      sourceName: "CNBC - Top News",
+      title,
+      storyKey: key,
+      seenStoryKeys: new Set([key]),
+      allowStoryClustering: true,
+    });
+    expect(second).toEqual({ drop: true, reason: "duplicate_story" });
   });
 });
