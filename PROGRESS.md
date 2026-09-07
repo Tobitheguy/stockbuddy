@@ -70,7 +70,7 @@ Living status doc. Updated at every checkpoint.
 - **Theme switched from dark to light.** Warm white page, near-black text,
   14px base (was 13px), more row padding, zebra striping. Bullish/bearish
   darkened so they still clear contrast requirements against white.
-- **Sources: 12 → 47** (33 verified live, 33 enabled). Composition: 11 EDGAR form types, 5 wires, 13 news outlets, 11 government/regulator, 5 primary databases, 2 Reddit. Newly verified live: SEC 13D, 13G, S-1, SEC press
+- **Sources: 12 → 40** (29 verified live, 29 enabled). Seven low-signal outlets were added and then deliberately removed again after probing them — see `docs/source-strategy.md`. Composition: 11 EDGAR form types, 5 wires, 6 news outlets, 11 government/regulator, 5 primary databases, 2 Reddit. Newly verified live: SEC 13D, 13G, S-1, SEC press
   releases, FDA, FTC competition, USTR, EIA, BLS, WSJ Markets, Yahoo Finance,
   MarketWatch. Reddit seeded but disabled. See `docs/social-media.md` for why
   X, Instagram and Facebook are not in the list.

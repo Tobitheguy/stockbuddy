@@ -115,7 +115,7 @@ the scoop coverage alone.
 
 ## "How many would you run if it were your money?"
 
-About **50**, which is where the list now sits (47). But the composition
+About **40**, which is where the list now sits after pruning. But the composition
 matters far more than the number, and my answer to "I don't want to miss
 news" is not *more outlets* — it is *more primary databases*.
 
@@ -165,11 +165,53 @@ of how much noise is behind it.
 
 ---
 
+## What I removed again, and why
+
+You asked which of the already-connected sources I would delete. Seven, and
+they are now gone. Every one was cut on **evidence from actually fetching it**,
+not on a hunch:
+
+| Removed | Why |
+|---|---|
+| **MarketWatch Top Stories** | Probe returned three personal-finance advice columns about inheritances and mortgages. Zero market news. |
+| **NBC News Business** | A gas-price tracker, a story about a Fox News anchor, and a jobs report that is BLS data we already pull from BLS directly. |
+| **Fortune** | One of three items was financial. The others were a volcano in Indonesia and a golf course. |
+| **Benzinga** | The feed works, but serves SEO crypto price-prediction pages rather than news. A good reminder that "the feed responds" and "the feed is worth paying to read" are different questions. |
+| **Business Insider** | Downstream aggregator with a heavy lifestyle mix. Blocked from here anyway. |
+| **CNN Business** | General-news desk, downstream of the wires we already read. |
+| **Seeking Alpha** | User-generated opinion and analysis, not news. Different product from what this tool needs. |
+
+That is 47 → 40 sources, and **13 → 6 news outlets**.
+
+### The six outlets that survived, and the rule behind it
+
+An outlet earns a place only if it either **originates** stories or delivers
+**tight factual market headlines**. Relaying the wires is not a qualification —
+we already read the wires.
+
+| Kept | Reason |
+|---|---|
+| **Reuters** | Originates scoops. Worth more than a dozen aggregators. |
+| **Associated Press** | Same. |
+| **WSJ Markets** | Originates scoops; headlines are free even though articles are not. |
+| **MarketWatch MarketPulse** | Proven tight and factual — *"Jobless claims fall to lowest level since mid-May"*. |
+| **CNBC** | Genuinely fast on M&A and breaking corporate news. |
+| **Yahoo Finance** | **Conditional.** A pure aggregator, kept only as a stand-in for Reuters and AP while those are unreachable. If Step 3 gets them working from the server, delete Yahoo — otherwise we pay to read the same story twice. |
+
+### Also on probation
+
+**SEC SC 13G** stays for now but is flagged in the config as the first thing to
+cut. Passive 5% stakes are mostly index funds rebalancing, which is not news,
+and the volume is high. It survives only because the occasional 13G is a real
+accumulation. CP4 gives it a measured hit rate, and that decides it.
+
+---
+
 ## Recommendation
 
-**Not hundreds. Roughly 50 well-chosen sources, which is where we now are.**
+**Not hundreds. Roughly 40 well-chosen sources, which is where we now are.**
 
-The seed list stands at 47 — 33 verified live, 33 enabled. The plan:
+The seed list stands at 40 — 29 verified live, 29 enabled, after cutting seven low-signal outlets. The plan:
 
 - **Keep the primary sources at full weight.** EDGAR, the wires, the
   regulators. This is where catalysts originate and where we beat the outlets
