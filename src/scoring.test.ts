@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeScore, recencyDecay, rulePrior } from "./scoring";
+import { computeScore, recencyDecay, rulePrior, scoreBand, SCORE_BANDS } from "./scoring";
 
 const NOW = new Date("2026-09-06T12:00:00Z");
 const hoursAgo = (h: number) => new Date(NOW.getTime() - h * 3_600_000);
@@ -79,11 +79,36 @@ describe("computeScore", () => {
     expect(half).toBeCloseTo(full / 2, 1);
   });
 
-  it("scales linearly with source weight", () => {
-    // An 8-K at 1.00 must outrank the same story from an aggregator at 0.50.
+  /**
+   * Source weight is compressed onto 0.65-1.0, not applied raw.
+   *
+   * It used to scale linearly, which charged the same story twice: the scoring
+   * prompt already tells the model to lower confidence for rumours and
+   * second-hand reports, so an aggregator's item arrived with a confidence
+   * that had absorbed that judgement — and then lost another 50% on top. With
+   * 187 of 228 model signals coming from a single 0.70 source, that second
+   * charge was applied to almost the whole feed.
+   */
+  it("compresses source weight instead of scaling linearly", () => {
     const primary = computeScore({ ...base, sourceWeight: 1.0 });
     const aggregator = computeScore({ ...base, sourceWeight: 0.5 });
-    expect(aggregator).toBeCloseTo(primary / 2, 1);
+
+    // Ordering must survive: a primary filing still beats a wire summary.
+    expect(aggregator).toBeLessThan(primary);
+    // But the penalty is a modifier, not a halving.
+    expect(aggregator).toBeGreaterThan(primary * 0.8);
+    expect(aggregator).toBeCloseTo(primary * 0.825, 1);
+  });
+
+  it("never lets provenance alone annihilate a signal", () => {
+    // A source we would not trust at all does not belong in the sources table.
+    // One that is there must not be able to zero out a real catalyst.
+    const worthless = computeScore({ ...base, sourceWeight: 0 });
+    expect(worthless).toBeGreaterThan(0);
+    expect(worthless).toBeCloseTo(
+      computeScore({ ...base, sourceWeight: 1 }) * 0.65,
+      1,
+    );
   });
 
   it("keeps a magnitude-1 signal worth a fifth, not nothing", () => {
@@ -146,5 +171,34 @@ describe("rulePrior — the free scoring mode", () => {
     const p = rulePrior("Some Feed Nobody Configured");
     expect(p.magnitude).toBeLessThanOrEqual(2);
     expect(p.eventType).toBe("other");
+  });
+});
+
+describe("scoreBand", () => {
+  /**
+   * The bands exist because a raw product of four sub-1 factors reads as a
+   * failing grade to anyone who has ever seen a percentage. They are read off
+   * the measured distribution: the top of a normal day sits in the low 30s.
+   */
+  it("labels the measured top of a normal day as strong, not failing", () => {
+    expect(scoreBand(30).label).toBe("Strong");
+    expect(scoreBand(29.9).label).toBe("Notable");
+    expect(scoreBand(50).label).toBe("Rare");
+  });
+
+  it("covers the whole range with no gap", () => {
+    for (let s = 0; s <= 100; s += 0.5) {
+      expect(scoreBand(s)).toBeDefined();
+    }
+  });
+
+  it("is monotonic — a higher score never lands in a lower band", () => {
+    const order = SCORE_BANDS.map((b) => b.label);
+    let lastIndex = order.length;
+    for (let s = 0; s <= 100; s += 0.5) {
+      const index = order.indexOf(scoreBand(s).label);
+      expect(index).toBeLessThanOrEqual(lastIndex);
+      lastIndex = index;
+    }
   });
 });

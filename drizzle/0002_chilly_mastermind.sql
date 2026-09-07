@@ -1,0 +1,1 @@
+ALTER TABLE "signals" ADD COLUMN "base_score" numeric(5, 2);

@@ -246,8 +246,26 @@ export const signals = pgTable(
     confidence: numeric("confidence", { precision: 3, scale: 2 }).notNull(),
     horizon: horizon("horizon").notNull(),
 
-    /** magnitude x confidence x source weight x recency decay, 0-100. */
+    /**
+     * The score as computed when the signal was written, decay included.
+     *
+     * Kept as history — it records what the tool thought at the time, which is
+     * what /stats needs to judge a prompt version fairly. It must NOT be used
+     * to order the feed: recency decay is a function of "now", so a value
+     * frozen at creation makes Monday's 35 outrank Friday's 30 forever.
+     */
     score: numeric("score", { precision: 5, scale: 2 }).notNull(),
+
+    /**
+     * magnitude x confidence x source weight, WITHOUT decay. Time-invariant.
+     *
+     * This is what the feed ranks by, multiplied by decay recomputed against
+     * the current clock at query time. Storing the decayed value and sorting
+     * on it was the bug: the ordering was correct for about a day and then
+     * quietly inverted, with no symptom other than stale news sitting at the
+     * top of a page whose whole purpose is to show what is new.
+     */
+    baseScore: numeric("base_score", { precision: 5, scale: 2 }),
 
     rationale: text("rationale").notNull(),
     keyFacts: jsonb("key_facts"),

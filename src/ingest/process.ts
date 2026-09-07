@@ -8,7 +8,12 @@ import {
   tickers,
   watchlist,
 } from "@/db/schema";
-import { computeScore, RULE_BASED_CONFIDENCE, rulePrior } from "@/scoring";
+import {
+  computeBaseScore,
+  computeScore,
+  RULE_BASED_CONFIDENCE,
+  rulePrior,
+} from "@/scoring";
 import {
   scoreItem,
   triage,
@@ -303,10 +308,13 @@ async function writeModelSignal(
   const sector = signal.sector.trim() || null;
   if (!validSymbol && !sector) return 0;
 
-  const score = computeScore({
+  const scoreInputs = {
     magnitude: signal.magnitude,
     confidence: signal.confidence,
     sourceWeight: Number(item.qualityWeight),
+  };
+  const score = computeScore({
+    ...scoreInputs,
     publishedAt: item.publishedAt,
     now,
     horizon: signal.horizon,
@@ -324,6 +332,7 @@ async function writeModelSignal(
       confidence: signal.confidence.toFixed(2),
       horizon: signal.horizon,
       score: score.toFixed(2),
+      baseScore: computeBaseScore(scoreInputs).toFixed(2),
       rationale: signal.rationale,
       keyFacts: {
         secondOrder: signal.isSecondOrder,
@@ -355,10 +364,13 @@ async function writeRuleSignals(
   const best = matches[0];
   const confidence = RULE_BASED_CONFIDENCE * best.confidence;
 
-  const score = computeScore({
+  const scoreInputs = {
     magnitude: prior.magnitude,
     confidence,
     sourceWeight: Number(item.qualityWeight),
+  };
+  const score = computeScore({
+    ...scoreInputs,
     publishedAt: item.publishedAt,
     now,
   });
@@ -375,6 +387,7 @@ async function writeRuleSignals(
       confidence: confidence.toFixed(2),
       horizon: "days",
       score: score.toFixed(2),
+      baseScore: computeBaseScore(scoreInputs).toFixed(2),
       rationale:
         `Rule-based match, no model reading. Ticker identified via ` +
         `${best.via.replace(/_/g, " ")}. Magnitude is a prior for this source ` +

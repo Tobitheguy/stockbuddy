@@ -23,7 +23,10 @@
     "outcomes": "tsx scripts/outcomes.ts",
     "dev-session": "tsx scripts/dev-session.ts",
     "top-signals": "tsx scripts/top-signals.ts",
-    "status": "tsx scripts/edgar-status.ts"
+    "status": "tsx scripts/edgar-status.ts",
+    "rescore": "tsx scripts/rescore.ts",
+    "anatomy": "tsx scripts/score-anatomy.ts",
+    "reprocess-filings": "tsx scripts/reprocess-filings.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",

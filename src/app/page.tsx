@@ -3,10 +3,12 @@ import { desc, eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { items, signals, sources, tickers, watchlist } from "@/db/schema";
 import { DirectionBadge } from "@/components/direction-badge";
+import { ScoreLegend } from "@/components/score-legend";
 import { SignalScore } from "@/components/signal-score";
 import { PageTitle, StatePanel, TableScroller } from "@/components/page-shell";
 import { EVENT_TYPE_LABEL, type Direction, type EventType } from "@/lib/types";
 import { formatAge } from "@/lib/format";
+import { liveScore } from "@/lib/live-score";
 import { WatchlistButton } from "@/components/watchlist-button";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +23,10 @@ async function loadSignals() {
       companyName: tickers.name,
       eventType: signals.eventType,
       direction: signals.direction,
-      score: signals.score,
+      // Decayed against the clock right now, not against the clock at the
+      // moment the row was written — otherwise Monday's signal outranks
+      // Friday's forever and the feed slowly stops being a feed.
+      score: liveScore(),
       rationale: signals.rationale,
       model: signals.model,
       title: items.title,
@@ -33,7 +38,7 @@ async function loadSignals() {
     .innerJoin(items, eq(items.id, signals.itemId))
     .innerJoin(sources, eq(sources.id, items.sourceId))
     .leftJoin(tickers, eq(tickers.symbol, signals.symbol))
-    .orderBy(desc(signals.score), desc(items.publishedAt))
+    .orderBy(desc(liveScore()), desc(items.publishedAt))
     .limit(PAGE_SIZE);
 }
 
@@ -99,6 +104,8 @@ export default async function SignalsPage() {
         title="Signals"
         subtitle={`${totals.signals} signals. Ranked by score — magnitude × confidence × source quality × recency.`}
       />
+
+      <ScoreLegend />
 
       {allRuleScored ? (
         <StatePanel

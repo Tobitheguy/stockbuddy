@@ -6,6 +6,14 @@
  * Each factor is 0-1 after normalisation, so the product lands in 0-100 and
  * the database CHECK constraint holds by construction rather than by clamping.
  *
+ * READ THE SCALE CORRECTLY. Four factors below 1 multiply into a small number,
+ * so 100 is not a grade a real signal approaches — it needs magnitude 5 AND
+ * near-total confidence AND a primary source AND to be minutes old, all at
+ * once. Measured on live data, an ordinary strong signal lands in the 30s and
+ * anything past 50 is rare. The number ranks; it does not grade. `SCORE_BANDS`
+ * below is the interpretation, and the UI shows it so 30 is not misread as a
+ * failing mark.
+ *
  * The whole ranking of the product depends on this function, so it is pure,
  * dependency-free and tested. It never reads the clock itself — `now` is
  * always passed in, or the same signal would score differently depending on
@@ -83,17 +91,102 @@ function normalizeMagnitude(magnitude: number): number {
   return clamped / 5;
 }
 
-export function computeScore(input: ScoreInput): number {
+/**
+ * Source weight, compressed onto 0.65-1.0 instead of applied raw.
+ *
+ * Applying it raw punished the same thing twice. The scoring prompt already
+ * instructs the model to lower its confidence for rumours, unnamed sources and
+ * anything likely to be priced in — so an aggregator's story arrives with a
+ * confidence that has *already* absorbed the reliability question. Multiplying
+ * by 0.70 on top of that charged it a second time, and the effect was not
+ * marginal: 187 of 228 model signals came from one 0.70 source, so almost the
+ * entire feed was being scaled down by 30% for a reason already counted.
+ *
+ * Compression keeps the ordering — a primary filing still outranks a wire
+ * summary, all else equal — while making the penalty a modifier rather than
+ * the dominant term. 0.5 -> 0.83, 0.7 -> 0.90, 0.9 -> 0.97, 1.0 -> 1.0.
+ *
+ * The floor is 0.65 and not 0: a source we would not trust at all does not
+ * belong in the sources table, and one that is there should not be able to
+ * annihilate a genuine catalyst on provenance alone.
+ */
+const SOURCE_WEIGHT_FLOOR = 0.65;
+
+function normalizeSourceWeight(weight: number): number {
+  const clamped = Math.min(1, Math.max(0, weight));
+  return SOURCE_WEIGHT_FLOOR + (1 - SOURCE_WEIGHT_FLOOR) * clamped;
+}
+
+/**
+ * The time-invariant part: magnitude × confidence × source weight × 100.
+ *
+ * Stored, and multiplied by a freshly computed decay whenever the feed is
+ * ordered or rendered. Splitting it out is what keeps the ranking honest a
+ * week later — the alternative is a stored number that was right on the day it
+ * was written and drifts silently from then on.
+ */
+export function computeBaseScore(
+  input: Pick<ScoreInput, "magnitude" | "confidence" | "sourceWeight">,
+): number {
   const magnitude = normalizeMagnitude(input.magnitude);
   const confidence = Math.min(1, Math.max(0, input.confidence));
-  const weight = Math.min(1, Math.max(0, input.sourceWeight));
+  const weight = normalizeSourceWeight(input.sourceWeight);
+  return round2(magnitude * confidence * weight * 100);
+}
+
+export function computeScore(input: ScoreInput): number {
   const decay = recencyDecay(input.publishedAt, input.now, input.horizon);
+  return round2(computeBaseScore(input) * decay);
+}
 
-  const raw = magnitude * confidence * weight * decay * 100;
+/** Two decimals, matching numeric(5,2) exactly — no drift between the two. */
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
 
-  // Two decimals matches the numeric(5,2) column exactly, so what is stored is
-  // what was computed — no silent rounding drift between the two.
-  return Math.round(raw * 100) / 100;
+/**
+ * What a score means, in words.
+ *
+ * These thresholds are read off the measured distribution, not chosen to
+ * flatter: with the live source list, the top of a normal day sits in the low
+ * 30s, so a band scheme borrowed from school marks would label the best signal
+ * in the feed a failure. Revisit these if the source mix changes materially —
+ * they describe the current distribution, not a law.
+ */
+export const SCORE_BANDS = [
+  {
+    min: 45,
+    label: "Rare",
+    blurb:
+      "Large expected move, high confidence, primary source, fresh. A handful per month.",
+  },
+  {
+    min: 30,
+    label: "Strong",
+    blurb: "Top of a normal day. Worth opening and reading the filing behind it.",
+  },
+  {
+    min: 18,
+    label: "Notable",
+    blurb: "A real read, but either second-order, less certain, or not fresh.",
+  },
+  {
+    min: 8,
+    label: "Background",
+    blurb: "Context. Mostly worth skimming rather than acting on.",
+  },
+  {
+    min: 0,
+    label: "Noise",
+    blurb: "Low expected impact or low confidence. Kept for the record.",
+  },
+] as const;
+
+export type ScoreBand = (typeof SCORE_BANDS)[number];
+
+export function scoreBand(score: number): ScoreBand {
+  // Ordered high to low, so the first match is the tightest one.
+  return SCORE_BANDS.find((b) => score >= b.min) ?? SCORE_BANDS[SCORE_BANDS.length - 1];
 }
 
 /**
