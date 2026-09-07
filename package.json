@@ -27,7 +27,8 @@
     "rescore": "tsx scripts/rescore.ts",
     "anatomy": "tsx scripts/score-anatomy.ts",
     "reprocess-filings": "tsx scripts/reprocess-filings.ts",
-    "daemon": "tsx scripts/daemon.ts"
+    "daemon": "tsx scripts/daemon.ts",
+    "alerts": "tsx scripts/send-alerts.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",
