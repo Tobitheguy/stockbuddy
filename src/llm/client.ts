@@ -96,6 +96,31 @@ async function recordUsage(args: {
   return cost;
 }
 
+/**
+ * True for errors where retrying, or calling again at all, cannot help:
+ * exhausted credit, a revoked key, a disabled workspace.
+ *
+ * These are worth separating from transient failures because the correct
+ * response is different in kind. A timeout should be retried; an empty
+ * account should stop the run from making 400 more calls that will each fail
+ * identically, and should say so in words the owner can act on.
+ */
+export function isModelUnavailable(err: unknown): string | null {
+  if (!(err instanceof Anthropic.APIError)) return null;
+  const status = err.status ?? 0;
+  const message = String(
+    (err.error as { error?: { message?: string } })?.error?.message ?? err.message,
+  );
+
+  if (/credit balance is too low/i.test(message)) {
+    return "Anthropic credit exhausted — top up at console.anthropic.com under Plans & Billing.";
+  }
+  if (status === 401) return "Anthropic API key rejected (401).";
+  if (status === 403) return "Anthropic API key lacks access (403).";
+  if (status === 429) return "Anthropic rate limit reached (429).";
+  return null;
+}
+
 /** Pull the first text block out of a response. */
 function firstText(content: Anthropic.ContentBlock[]): string {
   for (const block of content) {

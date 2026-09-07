@@ -17,6 +17,7 @@ import {
 import {
   scoreItem,
   triage,
+  isModelUnavailable,
   SCORE_MODEL,
   TRIAGE_MODEL,
   type ScoredSignal,
@@ -183,6 +184,8 @@ export async function runProcess(
   const deadline = opts.deadlineMs ? startedAt + opts.deadlineMs : Infinity;
   let ranOutOfTime = false;
   let itemsLeft = 0;
+  /** Set once the model becomes unusable; the rest of the run falls back. */
+  let modelDownReason: string | null = null;
 
   for (const [index, item] of queue.entries()) {
     // A model call can take a while; leave enough room to finish the one in
@@ -204,21 +207,40 @@ export async function runProcess(
 
     if (mode !== "off" && spentToday >= budgetUsd) haltedOnBudget = true;
 
-    if (useModel) {
+    if (useModel && !modelDownReason) {
       const scoreModel = mode === "full" ? SCORE_MODEL : TRIAGE_MODEL;
-      const { created, secondOrder, cost, triagedOut } = await modelScore(
-        item,
-        run.id,
-        scoreModel,
-        known,
-        owned,
-        now,
-      );
-      spentToday += cost;
-      itemsSentToModel++;
-      if (triagedOut) itemsTriagedOut++;
-      signalsCreated += created;
-      secondOrderSignals += secondOrder;
+      try {
+        const { created, secondOrder, cost, triagedOut } = await modelScore(
+          item,
+          run.id,
+          scoreModel,
+          known,
+          owned,
+          now,
+        );
+        spentToday += cost;
+        itemsSentToModel++;
+        if (triagedOut) itemsTriagedOut++;
+        signalsCreated += created;
+        secondOrderSignals += secondOrder;
+      } catch (err) {
+        /**
+         * An exhausted account or a revoked key fails identically on every
+         * subsequent item, so the first one settles it: stop calling the
+         * model and score the rest by rules. Previously any such error threw
+         * out of the whole run, which meant a billing problem stopped
+         * ingestion turning into signals at all — the pipeline went dark
+         * rather than degraded, and the only symptom was a 500 in a log
+         * nobody reads.
+         */
+        const fatal = isModelUnavailable(err);
+        if (!fatal) throw err;
+        modelDownReason = fatal;
+        console.error(`[process] model unavailable: ${fatal}`);
+        if (matches.length > 0) {
+          signalsCreated += await writeRuleSignals(item, matches, now);
+        }
+      }
     } else if (matches.length > 0) {
       signalsCreated += await writeRuleSignals(item, matches, now);
     }
@@ -248,6 +270,7 @@ export async function runProcess(
   }
 
   const notes = [
+    modelDownReason,
     haltedOnBudget ? "halted: daily LLM budget reached" : null,
     ranOutOfTime ? `stopped on time limit, ${itemsLeft} item(s) left` : null,
   ].filter(Boolean);
