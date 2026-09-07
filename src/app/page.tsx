@@ -46,6 +46,7 @@ async function loadSignals({ sort, dir, held }: FeedFilters) {
       // moment the row was written — otherwise Monday's signal outranks
       // Friday's forever and the feed slowly stops being a feed.
       score: liveScore(),
+      peakScore: signals.baseScore,
       rationale: signals.rationale,
       model: signals.model,
       title: items.title,

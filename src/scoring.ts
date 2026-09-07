@@ -41,18 +41,27 @@ export type ScoreInput = {
 /**
  * Half-life of a signal's score, in hours, by horizon.
  *
- * A "days" signal loses half its score in 18 hours — roughly one trading
- * session — because a short-horizon catalyst that you read about tomorrow is
- * mostly priced. A "months" signal decays over weeks, because a tariff or a
- * capacity decision is still actionable a fortnight later.
+ * CALIBRATED FOR A TOOL CHECKED ONCE A DAY, which is what changed these
+ * numbers. The first version used 18 hours for "days", on the reasoning that a
+ * short-horizon catalyst read about tomorrow is already priced. That is true
+ * for a trader watching a screen and wrong for this product: at 18 hours a
+ * signal keeps 40% overnight and 6% after three days, so genuinely large
+ * events were invisible by the time anyone looked at them. Measured on live
+ * data, a filing that scored 85 fresh was showing 17 — the tool had found the
+ * thing and then hidden it.
+ *
+ * 36 hours keeps 63% overnight, which is the actual requirement: a catalyst
+ * found while you slept must still be at the top when you wake up. Longer
+ * horizons scale with it — a tariff or a capacity decision is still worth
+ * reading a fortnight later, and a merger process runs for months.
  */
 const HALF_LIFE_HOURS: Record<Horizon, number> = {
-  days: 18,
-  weeks: 96, // 4 days
-  months: 504, // 3 weeks
+  days: 36, // overnight, plus a margin
+  weeks: 168, // one week
+  months: 720, // one month
 };
 
-const DEFAULT_HALF_LIFE_HOURS = 36;
+const DEFAULT_HALF_LIFE_HOURS = 72;
 
 /**
  * Exponential decay on age.

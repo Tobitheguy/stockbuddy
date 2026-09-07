@@ -10,9 +10,20 @@ describe("recencyDecay", () => {
   });
 
   it("halves at exactly one half-life", () => {
-    // "days" half-life is 18 hours, roughly one trading session.
-    expect(recencyDecay(hoursAgo(18), NOW, "days")).toBeCloseTo(0.5, 6);
-    expect(recencyDecay(hoursAgo(36), NOW, "days")).toBeCloseTo(0.25, 6);
+    // "days" half-life is 36 hours: overnight plus a margin.
+    expect(recencyDecay(hoursAgo(36), NOW, "days")).toBeCloseTo(0.5, 6);
+    expect(recencyDecay(hoursAgo(72), NOW, "days")).toBeCloseTo(0.25, 6);
+  });
+
+  /**
+   * The requirement that set the half-lives: a catalyst found overnight must
+   * still be near the top when the user looks in the morning. At the original
+   * 18 hours it kept 40% and a filing that scored 85 fresh displayed as 17 —
+   * the tool found the thing and then hid it.
+   */
+  it("keeps most of a signal's score overnight", () => {
+    expect(recencyDecay(hoursAgo(12), NOW, "days")).toBeGreaterThan(0.75);
+    expect(recencyDecay(hoursAgo(24), NOW, "days")).toBeGreaterThan(0.6);
   });
 
   it("decays a long-horizon signal far more slowly than a short one", () => {

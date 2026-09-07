@@ -23,9 +23,9 @@ describe("liveScore SQL", () => {
   it("carries the same half-lives as the TypeScript scorer", () => {
     const text = sqlText();
     for (const [horizon, hours] of [
-      ["days", "18"],
-      ["weeks", "96"],
-      ["months", "504"],
+      ["days", "36"],
+      ["weeks", "168"],
+      ["months", "720"],
     ] as const) {
       expect(text).toContain(horizon);
       expect(text).toContain(hours);
@@ -53,7 +53,7 @@ describe("base score and decayed score agree", () => {
 
         const base = computeBaseScore(inputs);
         const decayed = computeScore({ ...inputs, publishedAt, now, horizon });
-        const halfLife = { days: 18, weeks: 96, months: 504 }[horizon];
+        const halfLife = { days: 36, weeks: 168, months: 720 }[horizon];
         const expected = base * Math.pow(0.5, ageHours / halfLife);
 
         expect(decayed).toBeCloseTo(expected, 1);

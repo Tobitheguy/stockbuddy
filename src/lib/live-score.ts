@@ -18,10 +18,10 @@ import { sql, type SQL } from "drizzle-orm";
 
 /** Must match HALF_LIFE_HOURS in src/scoring.ts. */
 const HALF_LIFE_SQL = sql`case ${sql.raw("signals.horizon")}
-    when 'days'   then 18.0
-    when 'weeks'  then 96.0
-    when 'months' then 504.0
-    else 36.0
+    when 'days'   then 36.0
+    when 'weeks'  then 168.0
+    when 'months' then 720.0
+    else 72.0
   end`;
 
 export function liveScore(): SQL<number> {

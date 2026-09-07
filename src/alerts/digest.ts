@@ -45,8 +45,8 @@ export async function sendDailyDigestIfConfigured(): Promise<{
     select sg.symbol, sg.sector, sg.direction,
            coalesce(sg.base_score, sg.score)
              * power(0.5, greatest(extract(epoch from (now() - i.published_at)) / 3600.0, 0)
-               / case sg.horizon when 'days' then 18.0 when 'weeks' then 96.0
-                                 when 'months' then 504.0 else 36.0 end) as live,
+               / case sg.horizon when 'days' then 36.0 when 'weeks' then 168.0
+                                 when 'months' then 720.0 else 72.0 end) as live,
            sg.rationale, i.title, i.canonical_url as url
     from signals sg
     join items i on i.id = sg.item_id
