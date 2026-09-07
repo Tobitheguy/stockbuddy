@@ -3,7 +3,7 @@
 Living status doc. Updated at every checkpoint.
 
 **Repo:** https://github.com/Tobitheguy/stockbuddy
-**Current checkpoint:** CP1 — awaiting review
+**Current checkpoint:** CP2 — awaiting review
 
 ---
 
@@ -12,8 +12,8 @@ Living status doc. Updated at every checkpoint.
 | | Checkpoint | Status |
 |---|---|---|
 | CP0 | Repo, env example, README setup, fixtures | **Approved** |
-| CP1 | Shell + design tokens rendering | **Awaiting approval** |
-| CP2 | Schema, migration, seed | Not started |
+| CP1 | Shell + design tokens rendering | **Approved** |
+| CP2 | Schema, migration, seed | **Awaiting approval** |
 | CP3 | Scan runs clean against fixtures; /sources shows health | Not started |
 | CP4 | Signals on fixtures look right (10 shown with rationale) | Not started |
 | CP5 | Dashboard, watchlist, stats, outcomes job | Not started |
@@ -89,6 +89,46 @@ Living status doc. Updated at every checkpoint.
    decisions — and it is the most direct measure of whether this tool is worth
    trusting. It changes the `watchlist` table, so it is being designed into
    CP2 rather than bolted on later.
+
+### CP2 — Database schema, migration, seed
+
+- `src/db/schema.ts` — 9 tables, 6 Postgres enums, 7 CHECK constraints.
+- `drizzle/0000_watery_enchantress.sql` — generated migration, reviewable
+  without a database connection.
+- `src/db/client.ts` — Neon HTTP driver, lazily constructed so importing it
+  never throws during `next build`, where `DATABASE_URL` is legitimately
+  absent. Warns if the URL is not the pooled endpoint.
+- `scripts/seed.ts` — idempotent upsert of the 40 sources plus 15 starter
+  tickers. Preserves runtime health columns (`last_fetched_at`, `last_error`,
+  `error_streak`) on re-seed so `/sources` does not lie after a deploy.
+- `src/config/source-seed.test.ts` — 9 tests asserting the seed data satisfies
+  the database constraints *before* it reaches the database, including the
+  enabled-must-be-live rule that was violated once already.
+- npm scripts: `db:generate`, `db:migrate`, `db:push`, `db:seed`, `db:studio`.
+
+**Design decisions worth knowing:**
+
+- **`prices` holds only trading days.** So "+5 trading days" is "the 5th
+  following row for this symbol" — no market-holiday calendar, and nothing
+  drifts when the NYSE closes unexpectedly.
+- **`signals` unique key uses `NULLS NOT DISTINCT`.** Without it Postgres
+  treats every null symbol as unique, so every sector-level signal would
+  duplicate on reprocess — precisely the second-order rows this tool exists
+  for.
+- **CHECK constraints, not just Zod.** Zod validates what the model returned
+  this run; the constraints validate every write forever, including a future
+  bug or a manual backfill. A confidence of 4.7 would silently poison every
+  number on `/stats`.
+- **`items.prefilter_reason`** records *why* a rule dropped an item rather
+  than discarding it, so `/stats` can prove the cheap filter is not eating
+  real signals.
+- **`watchlist.price_at_add` + `price_at_add_at`** — your entry price and when
+  it was actually captured, so a stale capture is visible rather than silently
+  wrong.
+- **The watchlist seeds EMPTY**, deviating from the original plan's "a few
+  watchlist tickers". A seeded row carries no meaningful entry price, which
+  would corrupt the return-since-added figure — the one number that measures
+  whether the tool is worth trusting.
 
 ---
 
