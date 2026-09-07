@@ -78,8 +78,46 @@ describe("password hashing", () => {
   }, 30_000);
 
   it("treats a malformed stored hash as no match rather than crashing", async () => {
-    for (const bad of ["", "nonsense", "scrypt$x$8$1$aa$bb", "bcrypt$1$2$3$4$5"]) {
+    for (const bad of [
+      "",
+      "nonsense",
+      "scrypt.x.8.1.aa.bb",
+      "bcrypt.1.2.3.4.5",
+      "scrypt$x$8$1$aa$bb",
+    ]) {
       expect(await verifyPassword("anything", bad)).toBe(false);
     }
+  }, 30_000);
+
+  /**
+   * The hash lives in a .env file, and Next runs variable expansion over
+   * those. A "$" in the value is therefore read as a variable reference and
+   * substituted away — which is exactly what happened: an 87-character hash
+   * reached the app as 25 characters and every login failed with "wrong email
+   * or password", with nothing logged anywhere.
+   */
+  it("emits a hash that survives .env variable expansion", async () => {
+    const hash = await hashPassword("some password");
+    expect(hash).not.toContain("$");
+    // base64url, so no "+", "/" or "=" for a shell or URL to mangle either.
+    expect(hash).toMatch(/^scrypt\.\d+\.\d+\.\d+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/);
+  }, 30_000);
+
+  it("still verifies legacy $-separated hashes", async () => {
+    // Same salt and key, written both ways: anyone who generated a hash before
+    // the format changed must not be locked out by the fix.
+    const modern = await hashPassword("legacy check");
+    const [, n, r, p, salt, key] = modern.split(".");
+    const legacy = [
+      "scrypt",
+      n,
+      r,
+      p,
+      Buffer.from(salt, "base64url").toString("base64"),
+      Buffer.from(key, "base64url").toString("base64"),
+    ].join("$");
+
+    expect(await verifyPassword("legacy check", legacy)).toBe(true);
+    expect(await verifyPassword("wrong", legacy)).toBe(false);
   }, 30_000);
 });

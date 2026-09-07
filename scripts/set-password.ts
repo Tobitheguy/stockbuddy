@@ -29,7 +29,8 @@ async function main() {
 
   console.log(
     "\nAdd these to .env.local (and to the Vercel project's environment " +
-      "variables for the deployed app):\n",
+      "variables for the deployed app). Paste the line exactly as printed — " +
+      "no quotes around the value:\n",
   );
   console.log(`ADMIN_PASSWORD_HASH=${hash}`);
   if (!process.env.SESSION_SECRET) {
