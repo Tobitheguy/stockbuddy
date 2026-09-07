@@ -11,6 +11,8 @@ import { daysUntilLabel, nextEarnings } from "@/market/earnings";
 import { chartCloses, ensureHistory } from "@/market/history";
 import { pctReturn } from "@/market/prices";
 import { capBucket, ensureDescription, ensureProfile } from "@/market/profile";
+import { comparables, typicalMove } from "@/market/expectations";
+import { ExpectationPanel } from "@/components/expectation-panel";
 import { riskContext, volatilityLabel } from "@/market/risk";
 import { displayScore, scoreBand } from "@/scoring";
 import { liveScore } from "@/lib/live-score";
@@ -101,6 +103,13 @@ export default async function TickerPage({ params }: PageProps<"/t/[symbol]">) {
     .limit(25);
 
   const top = recent[0] ?? null;
+  // Base rates for the strongest current signal: how far this stock normally
+  // travels, and what followed past signals of the same kind.
+  const move5 = typicalMove(closes, 5);
+  const move20 = typicalMove(closes, 20);
+  const comps = top
+    ? await comparables(top.eventType, top.direction).catch(() => null)
+    : null;
   const tally = {
     bullish: recent.filter((r) => r.direction === "bullish").length,
     bearish: recent.filter((r) => r.direction === "bearish").length,
@@ -181,6 +190,16 @@ export default async function TickerPage({ params }: PageProps<"/t/[symbol]">) {
           <CurrentRead top={top} tally={tally} symbol={symbol} />
         </section>
       ) : null}
+
+      {/* ---- How far it usually moves ------------------------------------ */}
+      <ExpectationPanel
+        symbol={symbol}
+        move5={move5}
+        move20={move20}
+        comps={comps}
+        eventType={top?.eventType ?? null}
+        direction={top?.direction ?? null}
+      />
 
       {/* ---- Signals ----------------------------------------------------- */}
       <h2 className="mb-2 text-[14px] font-semibold">
