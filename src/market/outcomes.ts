@@ -42,7 +42,14 @@ export type OutcomeSummary = {
 
 /** How far back to look for signals still missing a measurement. */
 const LOOKBACK_DAYS = 60;
-const BATCH = 500;
+
+/**
+ * Sized for the real volume, which turned out to be ~670 signals on the first
+ * full day — at the original 500, the oldest signals would monopolise the
+ * batch and anything newer would wait a day for its baseline. A signal stays
+ * open for ~20 trading days, so steady state is several thousand open rows.
+ */
+const BATCH = 3000;
 
 /**
  * The last close on or before a date.
@@ -134,6 +141,30 @@ export async function runOutcomes(): Promise<OutcomeSummary> {
       continue;
     }
 
+    const measured: Record<string, number | null> = {
+      price1d: row.price1d === null ? null : Number(row.price1d),
+      price5d: row.price5d === null ? null : Number(row.price5d),
+      price20d: row.price20d === null ? null : Number(row.price20d),
+    };
+
+    /**
+     * Only query for offsets that can possibly exist yet. N trading days
+     * need at least N calendar days to have elapsed (weekends only ever add
+     * days), so a signal from Tuesday cannot have a +20 close and there is no
+     * reason to ask the database for one. At steady state — thousands of open
+     * signals, most waiting on +20 — this is most of the run's query volume,
+     * and it is what keeps the daily cron inside its time limit.
+     */
+    const ageCalendarDays =
+      (Date.now() - row.createdAt.getTime()) / 86_400_000;
+    const due = OFFSETS.filter(
+      (n) => measured[`price${n}d`] === null && ageCalendarDays >= n,
+    );
+
+    const needsBaseline =
+      row.priceAtSignal === null || row.priceAtSignal === undefined;
+    if (due.length === 0 && !needsBaseline) continue; // nothing can move yet
+
     // A gap anywhere from the baseline onward makes every offset suspect, not
     // just the one covering the gap: the offsets are counted as rows.
     if (await hasOpenGap(symbol, baseline.marketDate)) {
@@ -141,18 +172,17 @@ export async function runOutcomes(): Promise<OutcomeSummary> {
       continue;
     }
 
-    const measured: Record<string, number | null> = {
-      price1d: row.price1d === null ? null : Number(row.price1d),
-      price5d: row.price5d === null ? null : Number(row.price5d),
-      price20d: row.price20d === null ? null : Number(row.price20d),
-    };
-
-    for (const n of OFFSETS) {
-      const field = `price${n}d`;
-      if (measured[field] !== null) continue; // already settled, never revisit
+    let progressed = needsBaseline;
+    for (const n of due) {
       const hit = await closeNTradingDaysAfter(symbol, baseline.marketDate, n);
-      if (hit) measured[field] = hit.close;
+      if (hit) {
+        measured[`price${n}d`] = hit.close;
+        progressed = true;
+      }
     }
+
+    // Nothing new to record — the awaited trading day has not happened yet.
+    if (!progressed) continue;
 
     const returns = {
       return1d: pctReturn(baseline.close, measured.price1d),
