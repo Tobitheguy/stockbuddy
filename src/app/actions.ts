@@ -79,6 +79,33 @@ export async function addToWatchlist(
   return { ok: true, note: priceNote };
 }
 
+/**
+ * Mark a watchlist entry as an actual holding (or back to just-watching).
+ *
+ * The entry price stays whatever it was at add time — this flag records what
+ * the position IS, not when it was opened. If the user wants their real
+ * cost basis, that is a different number with tax implications and belongs in
+ * their broker, not here.
+ */
+export async function setOwned(
+  symbolRaw: string,
+  owned: boolean,
+): Promise<ActionResult> {
+  const symbol = symbolRaw.trim().toUpperCase();
+  const updated = await db()
+    .update(watchlist)
+    .set({ isOwned: owned })
+    .where(eq(watchlist.symbol, symbol))
+    .returning({ symbol: watchlist.symbol });
+
+  if (updated.length === 0) {
+    return { ok: false, error: `${symbol} is not on the watchlist.` };
+  }
+  revalidatePath("/watchlist");
+  revalidatePath(`/t/${symbol}`);
+  return { ok: true };
+}
+
 export async function removeFromWatchlist(
   symbolRaw: string,
 ): Promise<ActionResult> {

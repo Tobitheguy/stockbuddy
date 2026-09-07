@@ -456,6 +456,17 @@ export const watchlist = pgTable("watchlist", {
   priceAtAdd: numeric("price_at_add", { precision: 14, scale: 4 }),
   priceAtAddAt: timestamp("price_at_add_at", { withTimezone: true }),
   priceAtAddSource: text("price_at_add_source"),
+
+  /**
+   * True for positions the user actually holds, as opposed to symbols being
+   * watched out of interest. One flag on the existing table rather than a
+   * separate portfolio feature: everything a portfolio needs — entry price,
+   * price tracking, guaranteed news coverage — the watchlist already does.
+   * The flag exists so owned positions can be surfaced first and never
+   * dropped by any future prioritisation, because news about a stock the
+   * user holds is exactly the news this tool must not miss.
+   */
+  isOwned: boolean("is_owned").notNull().default(false),
 });
 
 // ---------------------------------------------------------------------------

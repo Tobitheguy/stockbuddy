@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { asc, eq, sql } from "drizzle-orm";
+import { asc, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { tickers, watchlist } from "@/db/schema";
+import { OwnedToggle } from "@/components/owned-toggle";
 import { PageTitle, StatePanel, TableScroller } from "@/components/page-shell";
 import { WatchlistButton } from "@/components/watchlist-button";
 import { pctReturn } from "@/market/prices";
@@ -23,6 +24,7 @@ export default async function WatchlistPage() {
       symbol: watchlist.symbol,
       name: tickers.name,
       note: watchlist.note,
+      isOwned: watchlist.isOwned,
       addedAt: watchlist.addedAt,
       priceAtAdd: watchlist.priceAtAdd,
       priceAtAddAt: watchlist.priceAtAddAt,
@@ -42,7 +44,9 @@ export default async function WatchlistPage() {
     })
     .from(watchlist)
     .leftJoin(tickers, eq(tickers.symbol, watchlist.symbol))
-    .orderBy(asc(watchlist.addedAt));
+    // Positions actually held come first — those rows are exposure, not
+    // curiosity, and must never require scrolling to find.
+    .orderBy(desc(watchlist.isOwned), asc(watchlist.addedAt));
 
   if (rows.length === 0) {
     return (
@@ -73,11 +77,17 @@ export default async function WatchlistPage() {
     <>
       <PageTitle
         title="Watchlist"
-        subtitle={
+        subtitle={[
+          `${rows.length} tracked`,
+          rows.some((r) => r.isOwned)
+            ? `${rows.filter((r) => r.isOwned).length} held`
+            : null,
           measured.length > 0
-            ? `${rows.length} tracked. ${winners} of ${measured.length} are up since you added them.`
-            : `${rows.length} tracked. Returns appear once a later price has been recorded.`
-        }
+            ? `${winners} of ${measured.length} up since you added them`
+            : `returns appear once a later price has been recorded`,
+        ]
+          .filter(Boolean)
+          .join(" · ")}
       />
 
       <TableScroller>
@@ -85,6 +95,7 @@ export default async function WatchlistPage() {
           <thead>
             <tr>
               <th className="text-left">Ticker</th>
+              <th className="text-left">Status</th>
               <th className="text-right">Entry price</th>
               <th className="text-right">Latest</th>
               <th className="text-right">Since added</th>
@@ -115,6 +126,9 @@ export default async function WatchlistPage() {
                         {r.note}
                       </div>
                     ) : null}
+                  </td>
+                  <td className="align-top">
+                    <OwnedToggle symbol={r.symbol} initiallyOwned={r.isOwned} />
                   </td>
                   <td className="num align-top text-right">
                     {entry !== null ? `$${formatPrice(entry)}` : (

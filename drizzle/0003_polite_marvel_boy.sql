@@ -1,0 +1,1 @@
+ALTER TABLE "watchlist" ADD COLUMN "is_owned" boolean DEFAULT false NOT NULL;

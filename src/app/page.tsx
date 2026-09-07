@@ -15,7 +15,18 @@ export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 60;
 
-async function loadSignals() {
+/**
+ * Two orderings, both legitimate:
+ *
+ *   top     the default — what deserves attention, score-ranked with decay
+ *           computed against the current clock.
+ *   newest  what just happened, pure recency. This is the "did anything come
+ *           in since I last looked" view; score still shows on every row, it
+ *           just does not drive the order.
+ */
+export type FeedSort = "top" | "newest";
+
+async function loadSignals(sort: FeedSort) {
   return db()
     .select({
       id: signals.id,
@@ -38,17 +49,55 @@ async function loadSignals() {
     .innerJoin(items, eq(items.id, signals.itemId))
     .innerJoin(sources, eq(sources.id, items.sourceId))
     .leftJoin(tickers, eq(tickers.symbol, signals.symbol))
-    .orderBy(desc(liveScore()), desc(items.publishedAt))
+    .orderBy(
+      ...(sort === "newest"
+        ? // Tie-break new items of the same minute by score, so a batch of
+          // simultaneous filings still surfaces its most important one first.
+          [desc(items.publishedAt), desc(liveScore())]
+        : [desc(liveScore()), desc(items.publishedAt)]),
+    )
     .limit(PAGE_SIZE);
 }
 
-export default async function SignalsPage() {
+function SortToggle({ sort }: { sort: FeedSort }) {
+  const options = [
+    { key: "top" as const, label: "Top", href: "/" },
+    { key: "newest" as const, label: "Newest", href: "/?sort=newest" },
+  ];
+  return (
+    <div className="flex items-center gap-1" role="group" aria-label="Sort order">
+      {options.map((o) => (
+        <Link
+          key={o.key}
+          href={o.href}
+          aria-current={sort === o.key ? "true" : undefined}
+          className={
+            "rounded-md px-2.5 py-1 text-[12px] transition-colors " +
+            "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring " +
+            (sort === o.key
+              ? "bg-surface-raised font-medium text-foreground"
+              : "text-muted-foreground hover:bg-surface hover:text-foreground")
+          }
+        >
+          {o.label}
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+export default async function SignalsPage(props: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await props.searchParams;
+  const sort: FeedSort = params.sort === "newest" ? "newest" : "top";
+
   let rows: Awaited<ReturnType<typeof loadSignals>>;
   let totals = { signals: 0, ruleScored: 0 };
   let watched = new Set<string>();
 
   try {
-    rows = await loadSignals();
+    rows = await loadSignals(sort);
     const counts = await db()
       .select({
         total: sql<number>`count(*)::int`,
@@ -102,7 +151,12 @@ export default async function SignalsPage() {
     <>
       <PageTitle
         title="Signals"
-        subtitle={`${totals.signals} signals. Ranked by score — magnitude × confidence × source quality × recency.`}
+        subtitle={
+          sort === "newest"
+            ? `${totals.signals} signals. Newest first — score shown but not driving the order.`
+            : `${totals.signals} signals. Ranked by score — magnitude × confidence × source quality × recency.`
+        }
+        actions={<SortToggle sort={sort} />}
       />
 
       <ScoreLegend />
