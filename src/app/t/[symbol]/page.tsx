@@ -4,10 +4,11 @@ import { db } from "@/db/client";
 import { items, signals, sources, tickers, watchlist } from "@/db/schema";
 import { PageTitle, StatePanel, TableScroller } from "@/components/page-shell";
 import { DirectionBadge } from "@/components/direction-badge";
+import { PriceChart } from "@/components/price-chart";
 import { SignalScore } from "@/components/signal-score";
-import { Sparkline } from "@/components/sparkline";
 import { WatchlistButton } from "@/components/watchlist-button";
-import { closesFor, pctReturn } from "@/market/prices";
+import { chartCloses, ensureHistory } from "@/market/history";
+import { pctReturn } from "@/market/prices";
 import { EVENT_TYPE_LABEL, type Direction, type EventType } from "@/lib/types";
 import { formatAge, formatPT, formatPrice, formatReturn } from "@/lib/format";
 
@@ -31,7 +32,11 @@ export default async function TickerPage({ params }: PageProps<"/t/[symbol]">) {
     .where(eq(watchlist.symbol, symbol))
     .limit(1);
 
-  const closes = await closesFor(symbol, 90);
+  // Backfill up to five years of daily closes on first view (one provider
+  // call, then cached in our own prices table). Failure is deliberately
+  // swallowed: a missing chart must never take down the signals below it.
+  await ensureHistory(symbol).catch(() => undefined);
+  const closes = await chartCloses(symbol);
 
   const rows = await db()
     .select({
@@ -111,23 +116,12 @@ export default async function TickerPage({ params }: PageProps<"/t/[symbol]">) {
       <section className="mb-5 rounded-lg border border-border bg-card p-4">
         <h2 className="mb-2 text-[13px] font-semibold">Price</h2>
         {closes.length >= 2 ? (
-          <>
-            <Sparkline points={closes} height={90} />
-            <div className="num mt-1 flex justify-between text-[11px] text-muted-foreground">
-              <span>{closes[0].marketDate}</span>
-              <span>
-                {closes.length} trading day{closes.length === 1 ? "" : "s"} recorded
-              </span>
-              <span>{closes.at(-1)!.marketDate}</span>
-            </div>
-          </>
+          <PriceChart points={closes} />
         ) : (
           <p className="max-w-prose text-[13px] text-muted-foreground">
-            No chart yet — and this is expected rather than broken. The free
-            market-data tier gives live quotes but not history, so this chart is
-            built from prices recorded once a day going forward. It fills in
-            over the following weeks. Nothing that has already happened is
-            missing from the signals below.
+            No chart for this symbol — the history provider returned nothing
+            for it, which usually means a very recent listing or a delisting.
+            The signals below are unaffected.
           </p>
         )}
       </section>

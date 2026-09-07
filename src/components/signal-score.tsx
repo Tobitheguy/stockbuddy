@@ -1,27 +1,22 @@
 import { cn } from "@/lib/utils";
 import type { Direction } from "@/lib/types";
-import { scoreBand } from "@/scoring";
+import { displayScore, scoreBand } from "@/scoring";
 
 /**
  * Score cell: the number, a band label, and a bar.
  *
- * THE BAR IS NOT SCALED TO 100, AND THAT IS DELIBERATE. The score is a product
- * of four factors each below 1, so 100 requires a magnitude-5 event, near-total
- * confidence, a primary source and minutes-old timing simultaneously. Measured
- * on live data the best signal of a normal day lands in the low-to-mid 30s.
- *
- * A bar drawn against 100 rendered that as one third full, which reads as a
- * failing grade for the single most important item in the feed — the visual
- * said "ignore this" about exactly the row the page exists to surface. Scaling
- * against a realistic ceiling and naming the band fixes the reading without
- * touching the number, which stays honest and comparable.
+ * Receives the RAW stored score and renders the display transform — the gamma
+ * stretch lives in exactly one place (displayScore in scoring.ts) so every
+ * surface shows the same number for the same signal. The raw value stays in
+ * the database and in /stats, where comparability across time matters more
+ * than readability.
  */
 
 /**
- * Full bar at this score. Chosen from the observed distribution, not to
- * flatter: above this is genuinely rare, so a full bar means something.
+ * Full bar at this displayed score rather than at 100. Above ~75 displayed
+ * (raw ~62) is genuinely exceptional, so a full bar means something.
  */
-const DISPLAY_CEILING = 50;
+const DISPLAY_CEILING = 75;
 
 export function SignalScore({
   score,
@@ -29,15 +24,16 @@ export function SignalScore({
   className,
   showBand = true,
 }: {
+  /** Raw stored score, 0-100. The display transform is applied here. */
   score: number;
   direction: Direction;
   className?: string;
   /** Off in dense contexts where the label would not fit. */
   showBand?: boolean;
 }) {
-  const clamped = Math.max(0, Math.min(100, score));
-  const band = scoreBand(clamped);
-  const fill = Math.min(100, (clamped / DISPLAY_CEILING) * 100);
+  const shown = displayScore(score);
+  const band = scoreBand(shown);
+  const fill = Math.min(100, (shown / DISPLAY_CEILING) * 100);
 
   const barColor =
     direction === "bullish"
@@ -52,12 +48,12 @@ export function SignalScore({
       title={`${band.label} — ${band.blurb}`}
     >
       <span className="num w-7 text-right text-[14px] font-medium tabular-nums">
-        {Math.round(clamped)}
+        {shown}
       </span>
       <span
         className="h-1.5 w-11 shrink-0 overflow-hidden rounded-full bg-surface-raised"
         role="img"
-        aria-label={`Score ${Math.round(clamped)}: ${band.label}. ${band.blurb}`}
+        aria-label={`Score ${shown}: ${band.label}. ${band.blurb}`}
       >
         <span
           className={cn("block h-full rounded-full opacity-85", barColor)}

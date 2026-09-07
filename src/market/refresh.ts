@@ -1,6 +1,7 @@
 import { desc, gte, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { prices, scanRuns, signals, watchlist } from "@/db/schema";
+import { ensureHistory } from "./history";
 import {
   fetchQuote,
   marketDateFor,
@@ -127,6 +128,11 @@ export async function refreshPrices(
       break;
     }
     try {
+      // Backfill history for symbols that have none. Self-throttling: a
+      // symbol with a filled history costs one COUNT query and no network.
+      // This is what gives a brand-new signal symbol its baseline close, so
+      // outcomes can measure it from day one instead of never.
+      await ensureHistory(symbol).catch(() => undefined);
       const quote = await fetchQuote(symbol);
       // Trust the quote's own session date over today's: an after-hours poll
       // still belongs to the session that just closed.

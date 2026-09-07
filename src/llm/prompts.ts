@@ -11,7 +11,15 @@ import { EVENT_TYPES, DIRECTIONS, HORIZONS } from "@/lib/types";
  */
 
 export const TRIAGE_PROMPT_VERSION = "triage-v1";
-export const SCORE_PROMPT_VERSION = "score-v1";
+/**
+ * v2: explicit confidence calibration. v1 produced a measured ceiling of 0.70
+ * and a median of 0.39 across 228 signals — including filed, quantified,
+ * completed transactions, where hedging to 0.5 is not caution but a wrong
+ * answer. The hit-rate-by-confidence table on /stats exists to check whether
+ * this calibration is real; if high-confidence signals are not right more
+ * often, roll back.
+ */
+export const SCORE_PROMPT_VERSION = "score-v2";
 
 /**
  * Stage A — triage. Runs on every item, so it must be short and cheap.
@@ -84,8 +92,13 @@ If you can identify a specific US-listed ticker for a second-order effect, emit 
 
 CALIBRATION — this matters more than coverage
 
-- magnitude 1-5: how much this could move the stock. 5 is reserved for things that reprice a company: an all-cash takeover, a going-concern warning, a phase-3 failure. A routine personnel announcement is 1.
-- confidence 0-1: how sure you are the reasoning is right AND that the market has not already priced it. An unnamed-sources rumour with a "may not happen" hedge must score materially lower than a filed 8-K describing a completed transaction. A story you suspect is already widely known should be lower.
+- magnitude 1-5: how much this could move the stock. 5 means the company is repriced: an all-cash takeover, a going-concern warning, a phase-3 failure, a contract larger than the company's revenue. USE IT when the event warrants it — a magnitude-5 event scored 4 buries the most important row of the day. A routine personnel announcement is 1.
+- confidence 0-1: how sure you are the reasoning is right AND that the market has not already priced it. USE THE WHOLE RANGE — this is the instruction most often violated. Anchors:
+    0.85-0.95  a filed document describing a completed, quantified event (signed merger with a price, FDA approval issued, contract awarded with a number). The facts are certain; only the market reaction is not.
+    0.6-0.8    a confirmed event with real uncertainty about size or follow-through — announced guidance cut, opened investigation, definitive agreement still needing approvals.
+    0.4-0.6    a sound second-order inference, or a confirmed event that is probably already widely priced.
+    below 0.4  rumours, unnamed sources, "considering", "in talks", your own speculation.
+  Hedging a certain fact to 0.5 is not caution, it is a wrong answer: it makes a signed takeover indistinguishable from a rumour of one, and ranking on that number is the entire product. The user's /stats page tracks whether your high-confidence signals are right more often — be as confident as the evidence, in both directions.
 - direction: neutral is a legitimate and often correct answer. An announcement that results WILL be presented is not the result. Use neutral rather than guessing.
 - horizon: days, weeks or months, by when the effect should show up.
 

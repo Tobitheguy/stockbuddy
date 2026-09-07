@@ -145,33 +145,55 @@ function round2(n: number): number {
 }
 
 /**
- * What a score means, in words.
+ * The DISPLAYED score: a gamma stretch of the raw product.
  *
- * These thresholds are read off the measured distribution, not chosen to
- * flatter: with the live source list, the top of a normal day sits in the low
- * 30s, so a band scheme borrowed from school marks would label the best signal
- * in the feed a failure. Revisit these if the source mix changes materially —
- * they describe the current distribution, not a law.
+ *   display = 100 × (raw / 100)^0.6
+ *
+ * The raw product of four sub-1 factors is mathematically honest and humanly
+ * unreadable: the strongest signal of a normal day lands near 30, which every
+ * reader parses as a failing grade — the user's words were "I want high scores
+ * if there is a real market opportunity", and they are right that a scale
+ * nobody can read is a defect. The stretch is strictly monotonic, so the
+ * RANKING is exactly the raw ranking — nothing moves up or down the feed, no
+ * signal gains on another — but the mid-range opens up: raw 30 shows as 49,
+ * raw 45 as 62, raw 10 as 25. Storage and /stats keep the raw value; only the
+ * rendering layer applies this.
+ *
+ * The exponent is calibration, not physics. 0.6 was chosen so the measured
+ * "top of a normal day" reads as ~50 and the genuinely rare reads as 60+; if
+ * the source mix changes materially, re-derive it from the distribution.
+ */
+const DISPLAY_GAMMA = 0.6;
+
+export function displayScore(raw: number): number {
+  const clamped = Math.min(100, Math.max(0, raw));
+  return Math.round(100 * Math.pow(clamped / 100, DISPLAY_GAMMA));
+}
+
+/**
+ * What a displayed score means, in words. Thresholds are displayScore() images
+ * of measured raw landmarks (raw 45 → 62, raw 30 → 49, raw 18 → 36, raw 8 →
+ * 22) — they describe the current distribution, not a law.
  */
 export const SCORE_BANDS = [
   {
-    min: 45,
+    min: 62,
     label: "Rare",
     blurb:
       "Large expected move, high confidence, primary source, fresh. A handful per month.",
   },
   {
-    min: 30,
+    min: 49,
     label: "Strong",
     blurb: "Top of a normal day. Worth opening and reading the filing behind it.",
   },
   {
-    min: 18,
+    min: 36,
     label: "Notable",
     blurb: "A real read, but either second-order, less certain, or not fresh.",
   },
   {
-    min: 8,
+    min: 22,
     label: "Background",
     blurb: "Context. Mostly worth skimming rather than acting on.",
   },
@@ -184,9 +206,10 @@ export const SCORE_BANDS = [
 
 export type ScoreBand = (typeof SCORE_BANDS)[number];
 
-export function scoreBand(score: number): ScoreBand {
+/** Takes a DISPLAYED score — pass raw values through displayScore() first. */
+export function scoreBand(displayed: number): ScoreBand {
   // Ordered high to low, so the first match is the tightest one.
-  return SCORE_BANDS.find((b) => score >= b.min) ?? SCORE_BANDS[SCORE_BANDS.length - 1];
+  return SCORE_BANDS.find((b) => displayed >= b.min) ?? SCORE_BANDS[SCORE_BANDS.length - 1];
 }
 
 /**

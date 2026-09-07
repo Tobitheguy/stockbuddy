@@ -15,11 +15,11 @@ export function ScoreLegend() {
   return (
     <div className="mb-4 rounded-lg border border-border bg-card px-4 py-3 shadow-[0_1px_2px_rgb(16_24_40/0.04)]">
       <p className="text-[12px] text-muted-foreground">
-        The score ranks; it is not a mark out of 100. It multiplies four factors
-        that are each below 1 — expected size of the move, the model&apos;s
-        confidence, how close the source is to the primary document, and how
-        fresh it is — so a genuinely strong signal lands around 30 and anything
-        past 45 is rare.
+        The score combines expected size of the move, the model&apos;s
+        confidence, source quality and freshness. Around 50 is the top of a
+        normal day; past 62 means a large, well-sourced, fresh catalyst — the
+        thing this tool exists to catch. It ranks research candidates; it is
+        never a recommendation.
       </p>
       <ul className="mt-2 flex flex-wrap gap-x-5 gap-y-1">
         {SCORE_BANDS.map((b) => (

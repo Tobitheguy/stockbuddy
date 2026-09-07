@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeScore, recencyDecay, rulePrior, scoreBand, SCORE_BANDS } from "./scoring";
+import { computeScore, recencyDecay, rulePrior, displayScore, scoreBand, SCORE_BANDS } from "./scoring";
 
 const NOW = new Date("2026-09-06T12:00:00Z");
 const hoursAgo = (h: number) => new Date(NOW.getTime() - h * 3_600_000);
@@ -174,16 +174,39 @@ describe("rulePrior — the free scoring mode", () => {
   });
 });
 
-describe("scoreBand", () => {
+describe("displayScore", () => {
   /**
-   * The bands exist because a raw product of four sub-1 factors reads as a
-   * failing grade to anyone who has ever seen a percentage. They are read off
-   * the measured distribution: the top of a normal day sits in the low 30s.
+   * The stretch exists because a raw product of four sub-1 factors reads as a
+   * failing grade to anyone who has ever seen a percentage. It must open up
+   * the mid-range without ever reordering anything.
    */
+  it("is strictly monotonic — the ranking is untouched", () => {
+    let prev = -1;
+    for (let raw = 0; raw <= 100; raw += 0.5) {
+      const d = displayScore(raw);
+      expect(d).toBeGreaterThanOrEqual(prev);
+      prev = d;
+    }
+  });
+
+  it("keeps the endpoints fixed", () => {
+    expect(displayScore(0)).toBe(0);
+    expect(displayScore(100)).toBe(100);
+  });
+
+  it("maps the measured landmarks onto readable numbers", () => {
+    // Raw 30 is the top of a normal day; it must read like one.
+    expect(displayScore(30)).toBe(49);
+    expect(displayScore(45)).toBe(62);
+    expect(displayScore(10)).toBe(25);
+  });
+});
+
+describe("scoreBand", () => {
   it("labels the measured top of a normal day as strong, not failing", () => {
-    expect(scoreBand(30).label).toBe("Strong");
-    expect(scoreBand(29.9).label).toBe("Notable");
-    expect(scoreBand(50).label).toBe("Rare");
+    expect(scoreBand(displayScore(30)).label).toBe("Strong");
+    expect(scoreBand(displayScore(18)).label).toBe("Notable");
+    expect(scoreBand(displayScore(45)).label).toBe("Rare");
   });
 
   it("covers the whole range with no gap", () => {
