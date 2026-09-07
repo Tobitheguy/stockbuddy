@@ -8,6 +8,7 @@ import { SignalScore } from "@/components/signal-score";
 import { formatAge } from "@/lib/format";
 import { liveScore } from "@/lib/live-score";
 import { HELD_ALERT_MIN, RARE_ALERT_MIN } from "@/alerts/engine";
+import { displayScore } from "@/scoring";
 import type { Direction } from "@/lib/types";
 
 /**
@@ -50,7 +51,7 @@ export default async function AlertsPage() {
     <>
       <PageTitle
         title="Alerts"
-        subtitle={`Signals that crossed the alert bar: ${RARE_ALERT_MIN}+ anywhere, or ${HELD_ALERT_MIN}+ on a position you hold.`}
+        subtitle={`Crossed the bar at ${RARE_ALERT_MIN}+ anywhere, or ${HELD_ALERT_MIN}+ on a position you hold. "Fired at" is the score at the time; "Now" is today, after age discounting.`}
       />
 
       {rows.length === 0 ? (
@@ -76,7 +77,8 @@ export default async function AlertsPage() {
                 <th className="text-left">Why</th>
                 <th className="text-left">Ticker</th>
                 <th className="text-left">Direction</th>
-                <th className="text-left">Score</th>
+                <th className="text-left">Fired at</th>
+                <th className="text-left">Now</th>
                 <th className="text-left">Headline</th>
               </tr>
             </thead>
@@ -117,12 +119,30 @@ export default async function AlertsPage() {
                   <td className="align-top">
                     <DirectionBadge direction={r.direction as Direction} />
                   </td>
+                  {/*
+                    Two columns, not one, and in this order.
+                    An alert is a record of a moment: the score it FIRED at is
+                    why the row exists, so that is the primary number. Showing
+                    only the current score made a genuine 72 read as 32 with
+                    nothing to explain why it had alerted at all; showing only
+                    the peak made this page disagree with the feed. Both, each
+                    labelled, is the only version that is not misleading.
+                  */}
                   <td className="align-top">
                     <SignalScore
-                      score={Number(r.score)}
-                      peakScore={r.peakScore === null ? undefined : Number(r.peakScore)}
+                      score={
+                        r.peakScore === null ? Number(r.score) : Number(r.peakScore)
+                      }
                       direction={r.direction as Direction}
                     />
+                  </td>
+                  <td className="align-top">
+                    <span
+                      className="num text-[14px] tabular-nums text-muted-foreground"
+                      title="Today's score. It decays with age — an alert is a record of when it fired, not a claim about right now."
+                    >
+                      {displayScore(Number(r.score))}
+                    </span>
                   </td>
                   <td className="max-w-[460px] align-top">
                     <a
