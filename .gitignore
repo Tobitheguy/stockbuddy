@@ -41,3 +41,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+.vercel
+.env*
+
+# Re-assert after the block Vercel CLI appended: the template carries no
+# secrets and must stay committed.
+!.env.example
