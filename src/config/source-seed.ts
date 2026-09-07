@@ -125,6 +125,52 @@ export const SEED_SOURCES: SeedSource[] = [
       "Insider buys/sells. Very high volume and mostly routine 10b5-1 vesting; the scorer must separate those from unplanned open-market cluster buys.",
   },
   {
+    name: "SEC EDGAR NT 10-K / NT 10-Q",
+    kind: "edgar",
+    url: "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=NT+10&company=&dateb=&owner=include&count=100&output=atom",
+    enabled: true,
+    pollIntervalSec: 900,
+    qualityWeight: 0.9,
+    storeBody: true,
+    verified: "live",
+    notes:
+      "Notification of late filing. A company telling the SEC it cannot file on time is one of the highest-signal, lowest-volume filings that exists — it frequently precedes a restatement, an auditor dispute or a going-concern warning. Almost nobody watches this feed.",
+  },
+  {
+    name: "SEC EDGAR SC TO-T",
+    kind: "edgar",
+    url: "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=SC+TO-T&company=&dateb=&owner=include&count=100&output=atom",
+    enabled: true,
+    pollIntervalSec: 900,
+    qualityWeight: 0.95,
+    storeBody: true,
+    verified: "live",
+    notes: "Third-party tender offers — a hostile or negotiated takeover bid.",
+  },
+  {
+    name: "SEC EDGAR 425",
+    kind: "edgar",
+    url: "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=425&company=&dateb=&owner=include&count=100&output=atom",
+    enabled: true,
+    pollIntervalSec: 900,
+    qualityWeight: 0.85,
+    storeBody: true,
+    verified: "live",
+    notes: "Merger communications filed during a pending deal.",
+  },
+  {
+    name: "SEC EDGAR 6-K",
+    kind: "edgar",
+    url: "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=6-K&company=&dateb=&owner=include&count=100&output=atom",
+    enabled: true,
+    pollIntervalSec: 600,
+    qualityWeight: 0.85,
+    storeBody: true,
+    verified: "live",
+    notes:
+      "Foreign private issuers reporting to the SEC. This is how a US-listed ADR discloses material news, and it is not covered by the 8-K feed.",
+  },
+  {
     name: "SEC EDGAR S-1",
     kind: "edgar",
     url: "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=S-1&company=&dateb=&owner=include&count=100&output=atom",
@@ -470,6 +516,80 @@ export const SEED_SOURCES: SeedSource[] = [
     storeBody: true,
     verified: "blocked",
     notes: "404 at this URL. Step 3 resolves the current one.",
+  },
+
+  // ==========================================================================
+  // Primary databases.
+  //
+  // These are the highest-leverage additions in the whole list, and the reason
+  // is worth stating: they carry the underlying fact BEFORE anyone writes a
+  // story about it. A federal contract award is recorded in USASpending when
+  // the agency obligates the money, which can precede the company's own press
+  // release. A clinical trial flips to "Active, not recruiting" in the
+  // registry before the sponsor announces enrolment is complete.
+  //
+  // Nobody reads these feeds, which is exactly why they are worth reading. All
+  // are free, public-domain US government data with no API key.
+  // ==========================================================================
+  {
+    name: "USASpending - Federal Contract Awards",
+    kind: "api",
+    url: "https://api.usaspending.gov/api/v2/search/spending_by_award/",
+    enabled: true,
+    pollIntervalSec: 3600,
+    qualityWeight: 0.9,
+    storeBody: true,
+    verified: "live",
+    notes:
+      "Federal contract awards. POST endpoint, no key. Filtered to awards above a size threshold; the scanner maps the recipient's parent company to a ticker. Catches defence, health and infrastructure awards at the moment the money is obligated.",
+  },
+  {
+    name: "ClinicalTrials.gov - Trial Updates",
+    kind: "api",
+    url: "https://clinicaltrials.gov/api/v2/studies?pageSize=100&sort=LastUpdatePostDate:desc&fields=NCTId,BriefTitle,OverallStatus,LeadSponsorName,LastUpdatePostDate,Phase,WhyStopped",
+    enabled: true,
+    pollIntervalSec: 3600,
+    qualityWeight: 0.85,
+    storeBody: true,
+    verified: "live",
+    notes:
+      "Trial status changes for commercial sponsors. A phase-3 trial flipping to TERMINATED or SUSPENDED, and the WhyStopped text, is material news that often predates any announcement. Verified live — the sample returned Roche and Amgen studies.",
+  },
+  {
+    name: "openFDA - Drug Approvals",
+    kind: "api",
+    url: "https://api.fda.gov/drug/drugsfda.json?limit=100&sort=submissions.submission_status_date:desc",
+    enabled: true,
+    pollIntervalSec: 3600,
+    qualityWeight: 0.85,
+    storeBody: true,
+    verified: "live",
+    notes:
+      "Structured drug approval records, keyed by sponsor. Complements the FDA press feed, which only covers announcements the FDA chose to publicise. Verified live — the sample returned a Pfizer NDA.",
+  },
+  {
+    name: "openFDA - Drug Enforcement / Recalls",
+    kind: "api",
+    url: "https://api.fda.gov/drug/enforcement.json?limit=100&sort=report_date:desc",
+    enabled: true,
+    pollIntervalSec: 3600,
+    qualityWeight: 0.8,
+    storeBody: true,
+    verified: "unverified",
+    notes:
+      "Same openFDA host as the verified drug-approvals endpoint, different dataset. Recalls and enforcement actions.",
+  },
+  {
+    name: "NHTSA - Vehicle Recalls",
+    kind: "api",
+    url: "https://api.nhtsa.gov/recalls/recallsByVehicle",
+    enabled: false,
+    pollIntervalSec: 3600,
+    qualityWeight: 0.75,
+    storeBody: true,
+    verified: "unverified",
+    notes:
+      "Vehicle safety recalls. Material for automakers and their suppliers. Step 3 confirms the query shape.",
   },
 
   // ==========================================================================

@@ -113,11 +113,63 @@ the scoop coverage alone.
 
 ---
 
+## "How many would you run if it were your money?"
+
+About **50**, which is where the list now sits (47). But the composition
+matters far more than the number, and my answer to "I don't want to miss
+news" is not *more outlets* — it is *more primary databases*.
+
+Here is the thing worth internalising: **you are far more likely to miss a
+signal because it was never in a news article at all than because you were
+missing the outlet that carried it.** The stories every outlet runs are the
+ones we already get from EDGAR and the wires. The genuinely missable events
+sit in government databases that nobody reads.
+
+Four of those are now wired in, all free, all no-key, all verified live:
+
+| Source | What it catches that news does not |
+|---|---|
+| **USASpending** | A federal contract award is recorded when the agency obligates the money — which can precede the company's own press release. A defence or infrastructure win shows up here first. |
+| **ClinicalTrials.gov** | A phase-3 trial flipping to `TERMINATED` or `SUSPENDED`, plus the `WhyStopped` field. Sponsors do not put out a release the moment they stop a trial. |
+| **openFDA** | Structured approval records for every sponsor, not only the ones FDA chose to write a press release about. |
+| **SEC NT 10-K / NT 10-Q** | A company formally telling the SEC it cannot file on time. Low volume, very high signal — it frequently precedes a restatement, an auditor dispute or a going-concern warning. Practically nobody watches this feed. |
+
+Plus three SEC form types that the 8-K feed does not cover: **SC TO-T**
+(tender offers — a takeover bid), **425** (merger communications), and **6-K**
+(how a US-listed foreign issuer discloses material news at all).
+
+That is the difference between breadth and depth. Adding NBC News gets you a
+slower copy of a jobs report. Adding NT 10-K gets you a company quietly
+admitting it cannot close its books.
+
+### The failure mode that actually matters
+
+There are two ways to miss a signal, and they pull in opposite directions:
+
+1. **It was never ingested.** Fixed by coverage. Largely solved — company
+   catalysts are legally required to be filed or are press-released, and we
+   read both at source.
+2. **It was ingested, ranked 340th, and you never scrolled that far.**
+   Fixed by *ranking and filtering*, and it gets strictly worse with every
+   source added.
+
+Failure mode 2 is the one that will actually bite. Doubling the sources
+doubles the volume; it does not double your attention. At some point another
+source makes you *more* likely to miss the important thing, not less. That
+point is well before "hundreds".
+
+This is why the score, the quality weights and `/stats` matter more than the
+source count — and why the watchlist and a score threshold are the real
+safety net. A high-scoring signal on a symbol you follow surfaces regardless
+of how much noise is behind it.
+
+---
+
 ## Recommendation
 
-**Not hundreds. Roughly 30–40 well-chosen sources, which is where we now are.**
+**Not hundreds. Roughly 50 well-chosen sources, which is where we now are.**
 
-The seed list stands at 38 — 26 verified live, 25 enabled. The plan:
+The seed list stands at 47 — 33 verified live, 33 enabled. The plan:
 
 - **Keep the primary sources at full weight.** EDGAR, the wires, the
   regulators. This is where catalysts originate and where we beat the outlets
