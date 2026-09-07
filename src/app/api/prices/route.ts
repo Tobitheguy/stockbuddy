@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { checkCronAuth } from "@/lib/cron-auth";
+import { syncEarningsCalendar } from "@/market/earnings";
 import { refreshPrices } from "@/market/refresh";
 
 /**
@@ -31,7 +32,13 @@ async function handle(request: Request) {
 
   try {
     const summary = await refreshPrices({ deadlineMs: SOFT_DEADLINE_MS });
-    return NextResponse.json(summary, { status: 200 });
+    // Earnings dates ride along with the daily price run: same provider, same
+    // rate budget, and the watchlist is small enough that this adds seconds.
+    const earnings = await syncEarningsCalendar().catch((err) => {
+      console.error("[prices] earnings sync failed:", err);
+      return { symbols: 0, stored: 0 };
+    });
+    return NextResponse.json({ ...summary, earnings }, { status: 200 });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("[prices] run failed:", err);

@@ -53,6 +53,75 @@ function Stat({
   );
 }
 
+/**
+ * The one-sentence answer to "can I trust the scores".
+ *
+ * Compares measured hit rates of the high- and low-confidence halves, and
+ * refuses to conclude anything until both sides clear MIN_RELIABLE_N. This is
+ * the sentence the user was promised when the display scale was stretched:
+ * high numbers are only honest if they are also RIGHT more often, and this is
+ * where that is either demonstrated or falsified.
+ */
+function CalibrationVerdict({ rows }: { rows: Breakdown[] }) {
+  const high = rows.filter((r) => /0\.6|0\.8/.test(r.label));
+  const low = rows.filter((r) => !/0\.6|0\.8/.test(r.label));
+  const sum = (xs: Breakdown[]) => ({
+    measured: xs.reduce((a, b) => a + b.measured, 0),
+    hits: xs.reduce((a, b) => a + (b.hitRate ?? 0) * b.measured, 0),
+  });
+  const h = sum(high);
+  const l = sum(low);
+
+  let tone: "pending" | "good" | "bad";
+  let text: string;
+
+  if (h.measured < MIN_RELIABLE_N || l.measured < MIN_RELIABLE_N) {
+    tone = "pending";
+    text =
+      `Not enough judged signals yet to say whether high confidence means ` +
+      `anything (${h.measured} high, ${l.measured} low judged; ` +
+      `${MIN_RELIABLE_N} each needed). Until this fills in, treat every ` +
+      `score as a research prompt, not a track record.`;
+  } else {
+    const hr = h.hits / h.measured;
+    const lr = l.hits / l.measured;
+    if (hr > lr) {
+      tone = "good";
+      text =
+        `Calibration is holding: high-confidence signals were right ` +
+        `${(hr * 100).toFixed(0)}% of the time against ${(lr * 100).toFixed(0)}% ` +
+        `for low-confidence ones (${h.measured} vs ${l.measured} judged). ` +
+        `The score is earning its ranking.`;
+    } else {
+      tone = "bad";
+      text =
+        `Warning: high-confidence signals are NOT beating low-confidence ones ` +
+        `(${(hr * 100).toFixed(0)}% vs ${(lr * 100).toFixed(0)}%). Until this ` +
+        `reverses, do not weight high scores more heavily than low ones.`;
+    }
+  }
+
+  return (
+    <div
+      className={cn(
+        "mt-6 rounded-lg border px-4 py-3 text-[13px] leading-relaxed",
+        tone === "good" && "border-bullish/35 bg-bullish/5",
+        tone === "bad" && "border-bearish/35 bg-bearish/5",
+        tone === "pending" && "border-border bg-card text-muted-foreground",
+      )}
+    >
+      <strong>
+        {tone === "good"
+          ? "Trust check: passing. "
+          : tone === "bad"
+            ? "Trust check: failing. "
+            : "Trust check: pending. "}
+      </strong>
+      {text}
+    </div>
+  );
+}
+
 function BreakdownTable({
   title,
   caption,
@@ -211,6 +280,8 @@ export default async function StatsPage() {
           }
         />
       ) : null}
+
+      <CalibrationVerdict rows={confidence} />
 
       <BreakdownTable
         title="By confidence"

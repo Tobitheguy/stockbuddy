@@ -470,6 +470,90 @@ export const watchlist = pgTable("watchlist", {
 });
 
 // ---------------------------------------------------------------------------
+// alerts — the signals important enough to interrupt for.
+//
+// The feed is a place the user visits; an alert is the tool reaching out.
+// Every alert is a row here regardless of delivery channel, so the /alerts
+// page works with zero external services, and email (when configured) is a
+// delivery detail rather than the source of truth. One row per signal — a
+// signal either crossed the alert bar once or it did not.
+// ---------------------------------------------------------------------------
+
+export const alertReason = pgEnum("alert_reason", ["rare", "held_strong"]);
+
+export const alerts = pgTable(
+  "alerts",
+  {
+    id: serial("id").primaryKey(),
+    signalId: integer("signal_id")
+      .notNull()
+      .unique()
+      .references(() => signals.id, { onDelete: "cascade" }),
+    /**
+     * rare        displayed score crossed the Rare band — top-of-month event.
+     * held_strong strong-or-better signal on a position the user holds.
+     *             Lower bar on purpose: news about held stock is exposure.
+     */
+    reason: alertReason("reason").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    /** Null until an email actually went out. Stays null with no email key. */
+    emailedAt: timestamp("emailed_at", { withTimezone: true }),
+  },
+  (t) => [index("alerts_created_idx").on(t.createdAt.desc())],
+);
+
+// ---------------------------------------------------------------------------
+// earnings_events — upcoming report dates for tracked symbols.
+//
+// Earnings are the one scheduled catalyst. Knowing "GOOGL reports in 3 days"
+// reframes every signal near that date, so the calendar is fetched for
+// watchlist symbols by the daily price job and shown wherever the symbol is.
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// ticker_profiles — the company card: industry, size, listing, website.
+//
+// Separate table rather than columns on `tickers` because tickers is synced
+// wholesale from the SEC list; a profile fetched per-symbol on demand would
+// be clobbered by every sync if it lived in the same row.
+// ---------------------------------------------------------------------------
+
+export const tickerProfiles = pgTable("ticker_profiles", {
+  symbol: text("symbol")
+    .primaryKey()
+    .references(() => tickers.symbol, { onDelete: "cascade" }),
+  industry: text("industry"),
+  exchange: text("exchange"),
+  country: text("country"),
+  website: text("website"),
+  ipoDate: date("ipo_date"),
+  /** In millions of USD, as the provider reports it. */
+  marketCapM: numeric("market_cap_m", { precision: 16, scale: 2 }),
+  fetchedAt: timestamp("fetched_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const earningsEvents = pgTable(
+  "earnings_events",
+  {
+    symbol: text("symbol")
+      .notNull()
+      .references(() => tickers.symbol, { onDelete: "cascade" }),
+    /** The report date as published; hour (bmo/amc) when the API gives it. */
+    reportDate: date("report_date").notNull(),
+    hour: text("hour"),
+    epsEstimate: numeric("eps_estimate", { precision: 12, scale: 4 }),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.symbol, t.reportDate] })],
+);
+
+// ---------------------------------------------------------------------------
 // scan_runs — one row per cron invocation, for the /sources health view.
 // ---------------------------------------------------------------------------
 

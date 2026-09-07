@@ -29,6 +29,20 @@
       "when": 1788760598274,
       "tag": "0003_polite_marvel_boy",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1788761139939,
+      "tag": "0004_familiar_slipstream",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1788761332102,
+      "tag": "0005_slippery_johnny_blaze",
+      "breakpoints": true
     }
   ]
 }

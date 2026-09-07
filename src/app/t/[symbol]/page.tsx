@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { db } from "@/db/client";
 import { items, signals, sources, tickers, watchlist } from "@/db/schema";
@@ -7,8 +7,13 @@ import { DirectionBadge } from "@/components/direction-badge";
 import { PriceChart } from "@/components/price-chart";
 import { SignalScore } from "@/components/signal-score";
 import { WatchlistButton } from "@/components/watchlist-button";
+import { daysUntilLabel, nextEarnings } from "@/market/earnings";
 import { chartCloses, ensureHistory } from "@/market/history";
 import { pctReturn } from "@/market/prices";
+import { capBucket, ensureProfile } from "@/market/profile";
+import { riskContext, volatilityLabel } from "@/market/risk";
+import { displayScore, scoreBand } from "@/scoring";
+import { liveScore } from "@/lib/live-score";
 import { EVENT_TYPE_LABEL, type Direction, type EventType } from "@/lib/types";
 import { formatAge, formatPT, formatPrice, formatReturn } from "@/lib/format";
 
@@ -36,7 +41,12 @@ export default async function TickerPage({ params }: PageProps<"/t/[symbol]">) {
   // call, then cached in our own prices table). Failure is deliberately
   // swallowed: a missing chart must never take down the signals below it.
   await ensureHistory(symbol).catch(() => undefined);
-  const closes = await chartCloses(symbol);
+  const [closes, profile, earnings] = await Promise.all([
+    chartCloses(symbol),
+    ensureProfile(symbol).catch(() => null),
+    nextEarnings(symbol).catch(() => null),
+  ]);
+  const risk = riskContext(closes);
 
   const rows = await db()
     .select({
@@ -63,6 +73,32 @@ export default async function TickerPage({ params }: PageProps<"/t/[symbol]">) {
   const latest = closes.at(-1)?.close ?? null;
   const entry = watched?.priceAtAdd ? Number(watched.priceAtAdd) : null;
   const sinceAdd = pctReturn(entry, latest);
+
+  // The current read: the strongest live-scored signal of the last 7 days
+  // drives the plain-language summary, with the week's direction tally as
+  // context. Live-scored, so yesterday's story does not keep the headline.
+  const weekAgo = new Date(Date.now() - 7 * 86_400_000);
+  const recent = await db()
+    .select({
+      liveScore: liveScore(),
+      direction: signals.direction,
+      rationale: signals.rationale,
+      eventType: signals.eventType,
+    })
+    .from(signals)
+    .innerJoin(items, eq(items.id, signals.itemId))
+    .where(
+      sql`${signals.symbol} = ${symbol} and ${items.publishedAt} >= ${weekAgo} and ${signals.model} <> 'rules'`,
+    )
+    .orderBy(desc(liveScore()))
+    .limit(25);
+
+  const top = recent[0] ?? null;
+  const tally = {
+    bullish: recent.filter((r) => r.direction === "bullish").length,
+    bearish: recent.filter((r) => r.direction === "bearish").length,
+    neutral: recent.filter((r) => r.direction === "neutral").length,
+  };
 
   return (
     <>
@@ -125,6 +161,118 @@ export default async function TickerPage({ params }: PageProps<"/t/[symbol]">) {
           </p>
         )}
       </section>
+
+      {/* ---- Current read ------------------------------------------------ */}
+      {top ? (
+        <section className="mb-5 rounded-lg border border-border bg-card p-4">
+          <h2 className="mb-2 text-[13px] font-semibold">
+            The current read{" "}
+            <span className="font-normal text-muted-foreground">
+              — last 7 days, in plain language
+            </span>
+          </h2>
+          <CurrentRead top={top} tally={tally} symbol={symbol} />
+        </section>
+      ) : null}
+
+      {/* ---- Company + risk context -------------------------------------- */}
+      <div className="mb-5 grid gap-3 lg:grid-cols-2">
+        <section className="rounded-lg border border-border bg-card p-4">
+          <h2 className="mb-2 text-[13px] font-semibold">About the company</h2>
+          {profile ? (
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-[13px]">
+              <Meta label="Industry" value={profile.industry ?? "—"} />
+              <Meta
+                label="Size"
+                value={
+                  profile.marketCapM !== null
+                    ? `$${formatMarketCap(profile.marketCapM)}${
+                        capBucket(profile.marketCapM)
+                          ? ` · ${capBucket(profile.marketCapM)!.label}`
+                          : ""
+                      }`
+                    : "—"
+                }
+              />
+              <Meta
+                label="Listed"
+                value={
+                  profile.ipoDate
+                    ? `since ${profile.ipoDate.slice(0, 4)}`
+                    : "—"
+                }
+              />
+              <Meta label="Exchange" value={shortExchange(profile.exchange)} />
+              {earnings ? (
+                <Meta
+                  label="Next earnings"
+                  value={`${daysUntilLabel(earnings.reportDate)} (${earnings.reportDate}${earnings.hour === "amc" ? ", after close" : earnings.hour === "bmo" ? ", before open" : ""})`}
+                  highlight
+                />
+              ) : null}
+              {profile.website ? (
+                <div className="col-span-2">
+                  <a
+                    href={profile.website}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[12px] text-muted-foreground hover:underline"
+                  >
+                    {profile.website.replace(/^https?:\/\//, "")}
+                  </a>
+                </div>
+              ) : null}
+            </dl>
+          ) : (
+            <p className="text-[13px] text-muted-foreground">
+              No profile available for this symbol.
+            </p>
+          )}
+          {capBucket(profile?.marketCapM ?? null) ? (
+            <p className="mt-2 text-[12px] text-muted-foreground">
+              {capBucket(profile!.marketCapM)!.note}.
+            </p>
+          ) : null}
+        </section>
+
+        <section className="rounded-lg border border-border bg-card p-4">
+          <h2 className="mb-2 text-[13px] font-semibold">
+            How rough is the ride
+          </h2>
+          {risk ? (
+            <>
+              <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-[13px]">
+                <Meta
+                  label="Volatility (1y)"
+                  value={`${risk.annualVolPct.toFixed(0)}% · ${volatilityLabel(risk.annualVolPct).label}`}
+                />
+                <Meta
+                  label="Worst fall (1y)"
+                  value={`${risk.maxDrawdownPct.toFixed(0)}%`}
+                />
+                <Meta
+                  label="52-week range"
+                  value={`$${formatPrice(risk.fiftyTwoWeekLow)} – $${formatPrice(risk.fiftyTwoWeekHigh)}`}
+                />
+                <Meta
+                  label="Today sits at"
+                  value={`${risk.rangePositionPct.toFixed(0)}% of that range`}
+                />
+              </dl>
+              <p className="mt-2 text-[12px] text-muted-foreground">
+                {volatilityLabel(risk.annualVolPct).note}. These are measured
+                facts about past behaviour — context for your own judgement,
+                never a recommendation. Whether and how much to invest is your
+                decision alone.
+              </p>
+            </>
+          ) : (
+            <p className="text-[13px] text-muted-foreground">
+              Not enough price history yet to compute risk figures.
+            </p>
+          )}
+        </section>
+      </div>
 
       {/* ---- Plain-language explainer ----------------------------------- */}
       <section className="mb-5 rounded-lg border border-border bg-surface p-4">
@@ -227,6 +375,96 @@ export default async function TickerPage({ params }: PageProps<"/t/[symbol]">) {
       )}
     </>
   );
+}
+
+/**
+ * Band + direction, translated into sentences a non-expert can act on.
+ *
+ * This exists because "Strong · Bearish" confused the tool's own user into
+ * asking whether it meant "invest". Score answers HOW IMPORTANT; direction
+ * answers WHICH WAY. The combination has to be spelled out in words, once,
+ * where the person is actually looking.
+ */
+function CurrentRead({
+  top,
+  tally,
+  symbol,
+}: {
+  top: {
+    liveScore: number;
+    direction: string;
+    rationale: string;
+    eventType: string;
+  };
+  tally: { bullish: number; bearish: number; neutral: number };
+  symbol: string;
+}) {
+  const shown = displayScore(Number(top.liveScore));
+  const band = scoreBand(shown);
+
+  const directionText =
+    top.direction === "bullish"
+      ? `reads POSITIVE for the share price — the kind of setup worth researching as a potential opportunity`
+      : top.direction === "bearish"
+        ? `reads NEGATIVE for the share price — treat it as a warning, not an invitation to buy`
+        : `has no clear direction yet — the event is real but which way it cuts is genuinely open`;
+
+  const mixed =
+    tally.bullish > 0 && tally.bearish > 0
+      ? ` The week is mixed — ${tally.bullish} bullish and ${tally.bearish} bearish signal(s) — so read both sides before forming a view.`
+      : "";
+
+  return (
+    <>
+      <p className="text-[13px] leading-relaxed">
+        The strongest current signal on {symbol} scores{" "}
+        <strong>
+          {shown} ({band.label})
+        </strong>{" "}
+        and {directionText}.{mixed}
+      </p>
+      <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
+        <strong className="text-foreground">Why:</strong> {top.rationale}
+      </p>
+      <p className="mt-2 text-[12px] text-muted-foreground">
+        &ldquo;{band.label}&rdquo; measures how much attention this deserves,
+        not whether to invest — that judgement, and the responsibility for it,
+        stays with you. This tool never gives investment advice.
+      </p>
+    </>
+  );
+}
+
+function Meta({
+  label,
+  value,
+  highlight = false,
+}: {
+  label: string;
+  value: string;
+  highlight?: boolean;
+}) {
+  return (
+    <div>
+      <dt className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        {label}
+      </dt>
+      <dd className={highlight ? "font-medium" : undefined}>{value}</dd>
+    </div>
+  );
+}
+
+function formatMarketCap(millions: number): string {
+  if (millions >= 1_000_000) return `${(millions / 1_000_000).toFixed(1)}T`;
+  if (millions >= 1_000) return `${(millions / 1_000).toFixed(1)}B`;
+  return `${millions.toFixed(0)}M`;
+}
+
+function shortExchange(exchange: string | null): string {
+  if (!exchange) return "—";
+  if (/new york stock exchange/i.test(exchange)) return "NYSE";
+  if (/nasdaq/i.test(exchange)) return "Nasdaq";
+  return exchange.length > 18 ? exchange.slice(0, 18) + "…" : exchange;
 }
 
 function Fact({

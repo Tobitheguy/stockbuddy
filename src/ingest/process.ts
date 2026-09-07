@@ -22,6 +22,8 @@ import {
   type ScoredSignal,
 } from "@/llm/client";
 import { SCORE_PROMPT_VERSION } from "@/llm/prompts";
+import { alertReasonFor, recordAlert } from "@/alerts/engine";
+import { sendAlertEmailIfConfigured } from "@/alerts/email";
 import { fetchFilingText } from "@/sources/edgar-document";
 import { buildNameIndex, matchTickers, type TickerMatch } from "./ticker-match";
 
@@ -101,11 +103,11 @@ export async function runProcess(
   const cikIndex = new Map<string, string>();
   for (const t of universe) if (t.cik) cikIndex.set(t.cik, t.symbol);
 
-  const watched = new Set(
-    (await database.select({ symbol: watchlist.symbol }).from(watchlist)).map(
-      (r) => r.symbol,
-    ),
-  );
+  const watchRows = await database
+    .select({ symbol: watchlist.symbol, isOwned: watchlist.isOwned })
+    .from(watchlist);
+  const watched = new Set(watchRows.map((r) => r.symbol));
+  const owned = new Set(watchRows.filter((r) => r.isOwned).map((r) => r.symbol));
 
   const queue = await database
     .select({
@@ -156,6 +158,7 @@ export async function runProcess(
         run.id,
         scoreModel,
         known,
+        owned,
         now,
       );
       spentToday += cost;
@@ -172,6 +175,13 @@ export async function runProcess(
       .set({ processedAt: new Date() })
       .where(eq(items.id, item.id));
   }
+
+  // One summary email per run, only when alerts exist and email is
+  // configured. Failure is logged inside and never fails the run — alerts
+  // stay pending and the next run retries them.
+  await sendAlertEmailIfConfigured().catch((err) =>
+    console.error("[process] alert email crashed:", err),
+  );
 
   const llmCostUsd = spentToday - (await todaysLlmSpendUsdBefore(startedAt));
   const durationMs = Date.now() - startedAt;
@@ -266,6 +276,7 @@ async function modelScore(
   runId: number,
   scoreModel: string,
   known: ReadonlySet<string>,
+  owned: ReadonlySet<string>,
   now: Date,
 ): Promise<{ created: number; secondOrder: number; cost: number; triagedOut: boolean }> {
   let cost = 0;
@@ -286,7 +297,7 @@ async function modelScore(
   let created = 0;
   let secondOrder = 0;
   for (const signal of s.signals) {
-    const wrote = await writeModelSignal(item, signal, s.model, known, now);
+    const wrote = await writeModelSignal(item, signal, s.model, known, owned, now);
     created += wrote;
     if (wrote && signal.isSecondOrder) secondOrder++;
   }
@@ -298,6 +309,7 @@ async function writeModelSignal(
   signal: ScoredSignal,
   model: string,
   known: ReadonlySet<string>,
+  owned: ReadonlySet<string>,
   now: Date,
 ): Promise<number> {
   const symbol = signal.symbol.trim().toUpperCase();
@@ -347,6 +359,15 @@ async function writeModelSignal(
       target: [signals.itemId, signals.symbol, signals.sector],
     })
     .returning({ id: signals.id });
+
+  // Alert check happens here, at the single choke point every model signal
+  // passes through — not in the UI, which would only alert on signals the
+  // user happened to render. Rule signals never alert: their direction is
+  // always neutral, which the alert rules exclude anyway.
+  if (inserted.length > 0) {
+    const reason = alertReasonFor(score, signal.direction, validSymbol, owned);
+    if (reason) await recordAlert(inserted[0].id, reason);
+  }
 
   return inserted.length;
 }

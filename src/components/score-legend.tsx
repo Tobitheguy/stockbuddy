@@ -31,6 +31,18 @@ export function ScoreLegend() {
           </li>
         ))}
       </ul>
+      {/* The score/direction split confused the tool's own user into reading
+          "Strong · Bearish" as a buy signal. Score = how important; direction
+          = which way. It has to be said here, where both are first seen. */}
+      <p className="mt-2 border-t border-border pt-2 text-[12px] text-muted-foreground">
+        <strong className="text-foreground">Score ≠ recommendation.</strong>{" "}
+        Score says how important; direction says which way.{" "}
+        <span className="text-bullish">▲ Bullish</span> reads positive for the
+        share price — a candidate to research.{" "}
+        <span className="text-bearish">▼ Bearish</span> reads negative — a
+        warning, not a buying opportunity. “Strong · Bearish” means strong
+        evidence the stock may fall.
+      </p>
     </div>
   );
 }

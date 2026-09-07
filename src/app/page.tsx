@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { items, signals, sources, tickers, watchlist } from "@/db/schema";
 import { DirectionBadge } from "@/components/direction-badge";
@@ -25,8 +25,16 @@ const PAGE_SIZE = 60;
  *           just does not drive the order.
  */
 export type FeedSort = "top" | "newest";
+export type FeedDir = "all" | "bullish" | "bearish";
 
-async function loadSignals(sort: FeedSort) {
+type FeedFilters = {
+  sort: FeedSort;
+  dir: FeedDir;
+  /** Only symbols marked Owned on the watchlist. */
+  held: boolean;
+};
+
+async function loadSignals({ sort, dir, held }: FeedFilters) {
   return db()
     .select({
       id: signals.id,
@@ -49,6 +57,14 @@ async function loadSignals(sort: FeedSort) {
     .innerJoin(items, eq(items.id, signals.itemId))
     .innerJoin(sources, eq(sources.id, items.sourceId))
     .leftJoin(tickers, eq(tickers.symbol, signals.symbol))
+    .where(
+      and(
+        dir === "all" ? undefined : eq(signals.direction, dir),
+        held
+          ? sql`${signals.symbol} in (select symbol from watchlist where is_owned)`
+          : undefined,
+      ),
+    )
     .orderBy(
       ...(sort === "newest"
         ? // Tie-break new items of the same minute by score, so a batch of
@@ -59,29 +75,78 @@ async function loadSignals(sort: FeedSort) {
     .limit(PAGE_SIZE);
 }
 
-function SortToggle({ sort }: { sort: FeedSort }) {
-  const options = [
-    { key: "top" as const, label: "Top", href: "/" },
-    { key: "newest" as const, label: "Newest", href: "/?sort=newest" },
-  ];
+/** Build a feed URL that changes one filter and keeps the rest. */
+function feedHref(filters: FeedFilters, patch: Partial<FeedFilters>): string {
+  const next = { ...filters, ...patch };
+  const q = new URLSearchParams();
+  if (next.sort === "newest") q.set("sort", "newest");
+  if (next.dir !== "all") q.set("dir", next.dir);
+  if (next.held) q.set("held", "1");
+  const s = q.toString();
+  return s ? `/?${s}` : "/";
+}
+
+/**
+ * The feed controls, as a full-width bar rather than a corner widget.
+ *
+ * The first version was a small toggle tucked into the title row; the user
+ * looked straight past it and reported sorting as broken. A control nobody
+ * finds is a control that does not exist — this one sits where the eye enters
+ * the table.
+ */
+function FeedControls({ filters }: { filters: FeedFilters }) {
+  const pill = (active: boolean) =>
+    "rounded-md px-3 py-1.5 text-[13px] transition-colors " +
+    "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring " +
+    (active
+      ? "bg-foreground text-background font-medium"
+      : "bg-surface text-muted-foreground hover:bg-surface-raised hover:text-foreground");
+
   return (
-    <div className="flex items-center gap-1" role="group" aria-label="Sort order">
-      {options.map((o) => (
-        <Link
-          key={o.key}
-          href={o.href}
-          aria-current={sort === o.key ? "true" : undefined}
-          className={
-            "rounded-md px-2.5 py-1 text-[12px] transition-colors " +
-            "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring " +
-            (sort === o.key
-              ? "bg-surface-raised font-medium text-foreground"
-              : "text-muted-foreground hover:bg-surface hover:text-foreground")
-          }
-        >
-          {o.label}
+    <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-border bg-card px-3 py-2">
+      <div className="flex items-center gap-1.5" role="group" aria-label="Sort">
+        <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+          Sort
+        </span>
+        <Link href={feedHref(filters, { sort: "top" })} className={pill(filters.sort === "top")}>
+          Top
         </Link>
-      ))}
+        <Link
+          href={feedHref(filters, { sort: "newest" })}
+          className={pill(filters.sort === "newest")}
+        >
+          Newest
+        </Link>
+      </div>
+
+      <div className="flex items-center gap-1.5" role="group" aria-label="Direction">
+        <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+          Direction
+        </span>
+        <Link href={feedHref(filters, { dir: "all" })} className={pill(filters.dir === "all")}>
+          All
+        </Link>
+        <Link
+          href={feedHref(filters, { dir: "bullish" })}
+          className={pill(filters.dir === "bullish")}
+        >
+          ▲ Bullish
+        </Link>
+        <Link
+          href={feedHref(filters, { dir: "bearish" })}
+          className={pill(filters.dir === "bearish")}
+        >
+          ▼ Bearish
+        </Link>
+      </div>
+
+      <Link
+        href={feedHref(filters, { held: !filters.held })}
+        aria-pressed={filters.held}
+        className={pill(filters.held)}
+      >
+        My positions only
+      </Link>
     </div>
   );
 }
@@ -91,13 +156,17 @@ export default async function SignalsPage(props: {
 }) {
   const params = await props.searchParams;
   const sort: FeedSort = params.sort === "newest" ? "newest" : "top";
+  const dir: FeedDir =
+    params.dir === "bullish" || params.dir === "bearish" ? params.dir : "all";
+  const held = params.held === "1";
+  const filters: FeedFilters = { sort, dir, held };
 
   let rows: Awaited<ReturnType<typeof loadSignals>>;
   let totals = { signals: 0, ruleScored: 0 };
   let watched = new Set<string>();
 
   try {
-    rows = await loadSignals(sort);
+    rows = await loadSignals(filters);
     const counts = await db()
       .select({
         total: sql<number>`count(*)::int`,
@@ -128,17 +197,30 @@ export default async function SignalsPage(props: {
   }
 
   if (rows.length === 0) {
+    const filtered = dir !== "all" || held;
     return (
       <>
         <PageTitle title="Signals" />
+        {filtered ? <FeedControls filters={filters} /> : null}
         <StatePanel
-          title="No signals yet"
+          title={filtered ? "Nothing matches these filters" : "No signals yet"}
           body={
-            <>
-              Run <code>npm run scan</code> to collect items, then{" "}
-              <code>npm run process</code> to turn them into signals. Once the
-              cron jobs are live this happens by itself.
-            </>
+            filtered ? (
+              held && dir === "all" ? (
+                <>
+                  No signals on your held positions yet. Mark holdings with the{" "}
+                  <em>Owned</em> toggle on the watchlist — or widen the filter.
+                </>
+              ) : (
+                <>Try widening the direction filter or switching off “My positions only”.</>
+              )
+            ) : (
+              <>
+                Run <code>npm run scan</code> to collect items, then{" "}
+                <code>npm run process</code> to turn them into signals. Once
+                the cron jobs are live this happens by itself.
+              </>
+            )
           }
         />
       </>
@@ -156,9 +238,9 @@ export default async function SignalsPage(props: {
             ? `${totals.signals} signals. Newest first — score shown but not driving the order.`
             : `${totals.signals} signals. Ranked by score — magnitude × confidence × source quality × recency.`
         }
-        actions={<SortToggle sort={sort} />}
       />
 
+      <FeedControls filters={filters} />
       <ScoreLegend />
 
       {allRuleScored ? (

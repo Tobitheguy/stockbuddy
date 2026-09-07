@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { checkCronAuth } from "@/lib/cron-auth";
+import { sendDailyDigestIfConfigured } from "@/alerts/digest";
 import { runOutcomes } from "@/market/outcomes";
 
 /**
@@ -26,7 +27,14 @@ async function handle(request: Request) {
 
   try {
     const outcomes = await runOutcomes();
-    return NextResponse.json(outcomes, { status: 200 });
+    // The digest goes out here — after the daily measurement, so the held-
+    // positions table reflects today's close. Optional; a missing email key
+    // just skips it.
+    const digest = await sendDailyDigestIfConfigured().catch((err) => {
+      console.error("[outcomes] digest failed:", err);
+      return { sent: false, skipped: "crashed" };
+    });
+    return NextResponse.json({ ...outcomes, digest }, { status: 200 });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("[outcomes] run failed:", err);
