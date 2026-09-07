@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   items,
@@ -124,7 +124,39 @@ export async function runProcess(
     .from(items)
     .innerJoin(sources, eq(sources.id, items.sourceId))
     .where(and(isNull(items.processedAt), isNull(items.prefilterReason)))
-    .orderBy(asc(items.publishedAt))
+    /**
+     * Most valuable first, not oldest first.
+     *
+     * The daily budget is a hard stop, so the order of this queue decides
+     * what the money buys. Oldest-first spent it on whichever stories
+     * happened to be published earliest — a filing that could reprice a
+     * company waited behind a morning's wire copy and was still waiting when
+     * the budget ran out. That is the difference between a budget and a
+     * lottery.
+     *
+     * The order within a tier is still oldest-first, so nothing starves.
+     */
+    .orderBy(
+      sql`case
+            /* News about a position the user actually holds. Never queued
+               behind anything, at any budget. */
+            when exists (
+              select 1 from watchlist w
+              where w.is_owned
+                and (${items.title} ilike '%' || w.symbol || '%'
+                     or ${items.summary} ilike '%' || w.symbol || '%')
+            ) then 0
+            /* Primary documents: the filer's own words, legally required,
+               and the only tier where magnitude 5 realistically lives. */
+            when ${sources.kind} = 'edgar' then 1
+            /* Regulators and rule-makers — low volume, high consequence. */
+            when ${sources.name} ~ '(FDA|FTC|USTR|Federal Reserve|SEC -)' then 2
+            /* Everything else, best sources first. */
+            else 3
+          end`,
+      desc(sources.qualityWeight),
+      asc(items.publishedAt),
+    )
     .limit(opts.limit ?? BATCH_SIZE);
 
   const now = new Date();
