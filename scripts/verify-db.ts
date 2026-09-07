@@ -33,6 +33,12 @@ function bad(name: string, detail = "") {
   fail++;
 }
 
+/** Assert a condition, reporting the same way as mustReject. */
+function expect(condition: boolean, name: string, detail = "") {
+  if (condition) ok(name);
+  else bad(name, detail);
+}
+
 /** Assert the database REFUSES a statement. */
 async function mustReject(name: string, fn: () => Promise<unknown>) {
   try {
@@ -50,15 +56,15 @@ async function main() {
   const tables = await sql`select table_name from information_schema.tables
     where table_schema = 'public' and table_name not like '__drizzle%' order by 1`;
   console.log(`  tables: ${tables.map((t) => t.table_name).join(", ")}`);
-  tables.length === 10
-    ? ok("10 tables present")
-    : bad("table count", String(tables.length));
+  expect(tables.length === 10, "10 tables present", String(tables.length));
 
   const checks = await sql`select conname from pg_constraint
     where contype = 'c' and connamespace = 'public'::regnamespace order by 1`;
-  checks.length >= 7
-    ? ok(`${checks.length} check constraints present`)
-    : bad("check constraints", String(checks.length));
+  expect(
+    checks.length >= 7,
+    `${checks.length} check constraints present`,
+    String(checks.length),
+  );
 
   console.log("\n— seed —");
   const [{ count: sources }] = await sql`select count(*)::int from sources`;
@@ -66,10 +72,8 @@ async function main() {
     await sql`select count(*)::int from sources where enabled`;
   const [{ count: watchlist }] = await sql`select count(*)::int from watchlist`;
   console.log(`  sources=${sources} enabled=${enabled} watchlist=${watchlist}`);
-  sources === 40 ? ok("40 sources") : bad("source count", String(sources));
-  watchlist === 0
-    ? ok("watchlist empty by design")
-    : bad("watchlist should seed empty", String(watchlist));
+  expect(sources === 40, "40 sources", String(sources));
+  expect(watchlist === 0, "watchlist empty by design", String(watchlist));
 
   console.log("\n— CHECK constraints refuse bad data —");
   await mustReject(
@@ -111,9 +115,11 @@ async function main() {
   }
   const [{ count: itemCount }] =
     await sql`select count(*)::int from items where canonical_url = ${VERIFY_URL}`;
-  itemCount === 1
-    ? ok("scanning twice inserts one item")
-    : bad("duplicate items", String(itemCount));
+  expect(
+    itemCount === 1,
+    "scanning twice inserts one item",
+    String(itemCount),
+  );
 
   const [item] = await sql`select id from items where canonical_url = ${VERIFY_URL}`;
 
@@ -126,9 +132,11 @@ async function main() {
   }
   const [{ count: sigCount }] =
     await sql`select count(*)::int from signals where item_id = ${item.id}`;
-  sigCount === 1
-    ? ok("sector-level signal does not duplicate on reprocess (NULLS NOT DISTINCT)")
-    : bad("sector signal duplicated", String(sigCount));
+  expect(
+    sigCount === 1,
+    "sector-level signal does not duplicate on reprocess (NULLS NOT DISTINCT)",
+    String(sigCount),
+  );
 
   console.log("\n— history is protected —");
   await sql`insert into signals (item_id,symbol,event_type,direction,magnitude,confidence,horizon,score,rationale,model,prompt_version)
