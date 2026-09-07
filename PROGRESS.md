@@ -3,7 +3,7 @@
 Living status doc. Updated at every checkpoint.
 
 **Repo:** https://github.com/Tobitheguy/stockbuddy
-**Current checkpoint:** CP0 — awaiting review
+**Current checkpoint:** CP1 — awaiting review
 
 ---
 
@@ -11,8 +11,8 @@ Living status doc. Updated at every checkpoint.
 
 | | Checkpoint | Status |
 |---|---|---|
-| CP0 | Repo, env example, README setup, fixtures | **Awaiting approval** |
-| CP1 | Shell + design tokens rendering | Not started |
+| CP0 | Repo, env example, README setup, fixtures | **Approved** |
+| CP1 | Shell + design tokens rendering | **Awaiting approval** |
 | CP2 | Schema, migration, seed | Not started |
 | CP3 | Scan runs clean against fixtures; /sources shows health | Not started |
 | CP4 | Signals on fixtures look right (10 shown with rationale) | Not started |
@@ -45,6 +45,26 @@ Living status doc. Updated at every checkpoint.
   0 blockers, 4 major, 4 minor, 1 nit. All four majors fixed before this
   checkpoint was raised (see below).
 
+### CP1 — Shell and design foundation
+
+- Dark-only theme in `src/app/globals.css`. Tailwind v4 `@theme inline` tokens
+  for background/surface/border/text/muted, bullish/bearish/neutral, and a
+  separate ok/warn pair for infrastructure status.
+- 13px base, 8px rhythm, tight radii, `.num` class for tabular monospace so
+  numeric columns align vertically.
+- `AppHeader` — sticky slim header, nav with `aria-current`, 1280px container.
+- Pages: `/`, `/watchlist`, `/sources`, `/stats`, `/t/[symbol]`.
+- States: empty (`StatePanel`), loading (`loading.tsx` + `TableSkeleton`),
+  error (`error.tsx` boundary), 404 (`not-found.tsx`).
+- `src/lib/types.ts` — the event-type / direction / horizon vocabulary, defined
+  once so the Zod schema, Drizzle enums and UI cannot drift.
+- `src/lib/format.ts` + 14 unit tests, covering the UTC→PT date boundary.
+- `next.config.ts` pins the Turbopack root to the repo, silencing a warning
+  where it was inferring a workspace root from an unrelated lockfile in the
+  home directory.
+- Cross-model review: `docs/reviews/step-1.md`. 0 blockers, 2 major, 2 minor,
+  1 nit — all fixed before raising the checkpoint.
+
 ---
 
 ## Decisions made
@@ -68,6 +88,15 @@ Living status doc. Updated at every checkpoint.
 | `store_body` / `verified` / `notes` had no schema destination | Decided above, before the CP2 migration makes it expensive. |
 | `npm run test` exited 1 with no test files | Added `--passWithNoTests`. |
 | Dangling reference to a nonexistent `docs/evals.md` | Removed; the assertion vocabulary is documented in the fixture file itself. |
+
+### Review fixes applied at CP1
+
+| Finding | Fix |
+|---|---|
+| `formatAge` returned `"0y"` for anything 100–364 days old — it read as "just now" for something months old | Added a months bucket. Three regression tests at the 99d / 150d / 400d boundaries. |
+| "Loading, empty and error states" was only one third delivered — no loading skeleton existed, and `StatePanel`'s error tone was never used by any page | Added `loading.tsx` + `TableSkeleton`, `error.tsx` (which deliberately shows only the digest, never `error.message`, since a thrown error will carry the database URL once Step 3 lands) and `not-found.tsx`. |
+| `/sources` used bullish green and bearish red for feed health, colliding with the market-direction meaning of those two colors | Added distinct `ok` (cyan) and `warn` (amber) tokens. Green and red now mean market direction and nothing else. |
+| Header could overflow at 320px | `shrink-0` on the brand and nav items, `min-w-0` + `overflow-x-auto` on the nav. Verified by measurement at 320/375/390px. |
 
 ---
 

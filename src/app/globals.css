@@ -1,26 +1,192 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@custom-variant dark (&:is(.dark *));
+
+/* ---------------------------------------------------------------------------
+   Signal Desk design tokens
+
+   Dark only. This is a private research terminal, not a marketing site, so
+   there is no light theme to maintain and no theme toggle to build.
+
+   Priorities, in order: information density, fast scanning of a long table,
+   and an unmissable distinction between bullish and bearish. Decoration is
+   not a priority.
+
+   Rhythm is 8px. Numeric columns are monospace and tabular so that digits
+   line up vertically down a column — a price column in a proportional font
+   is unreadable at a glance.
+   --------------------------------------------------------------------------- */
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+
+  /* Fonts. The scaffold exposes Geist under --font-geist-*; map them here.
+     (shadcn's generated default self-referenced --font-sans and resolved to
+     nothing, which silently fell back to the browser default.) */
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-geist-sans);
+
+  /* Surfaces */
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+
+  /* Signal semantics — the only saturated colors in the product. */
+  --color-bullish: var(--bullish);
+  --color-bullish-dim: var(--bullish-dim);
+  --color-bearish: var(--bearish);
+  --color-bearish-dim: var(--bearish-dim);
+  --color-neutral: var(--neutral);
+  --color-neutral-dim: var(--neutral-dim);
+
+  /* Infrastructure status. Deliberately NOT green/red: those two colors mean
+     "bullish" and "bearish" everywhere else in the product, and a healthy feed
+     has nothing to do with a rising stock. Cyan/amber keeps the two vocabularies
+     from bleeding into each other. */
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+
+  /* shadcn surface + control tokens */
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+
+  /* Tight radii. Big rounded corners waste vertical space in a dense table. */
+  --radius-sm: 2px;
+  --radius-md: 3px;
+  --radius-lg: 4px;
+  --radius-xl: 6px;
+  --radius-2xl: 8px;
+  --radius-3xl: 10px;
+  --radius-4xl: 12px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+:root,
+.dark {
+  /* Near-black with a trace of blue. Pure #000 makes borders impossible to
+     see and the whole table reads as a single undifferentiated block. */
+  --background: oklch(0.163 0.008 255);
+  --foreground: oklch(0.928 0.004 255);
+
+  --surface: oklch(0.196 0.009 255);
+  --surface-raised: oklch(0.238 0.011 255);
+
+  --card: oklch(0.196 0.009 255);
+  --card-foreground: oklch(0.928 0.004 255);
+  --popover: oklch(0.238 0.011 255);
+  --popover-foreground: oklch(0.928 0.004 255);
+
+  --primary: oklch(0.928 0.004 255);
+  --primary-foreground: oklch(0.163 0.008 255);
+  --secondary: oklch(0.262 0.011 255);
+  --secondary-foreground: oklch(0.928 0.004 255);
+
+  --muted: oklch(0.238 0.011 255);
+  --muted-foreground: oklch(0.652 0.012 255);
+
+  --accent: oklch(0.262 0.011 255);
+  --accent-foreground: oklch(0.928 0.004 255);
+
+  --border: oklch(0.301 0.012 255);
+  --input: oklch(0.301 0.012 255);
+
+  /* Focus ring is cyan so it can never be confused with a bullish/bearish
+     state. Accessibility signal and market signal must not share a color. */
+  --ring: oklch(0.706 0.132 220);
+
+  --bullish: oklch(0.735 0.163 152);
+  --bullish-dim: oklch(0.735 0.163 152 / 14%);
+  --bearish: oklch(0.672 0.196 22);
+  --bearish-dim: oklch(0.672 0.196 22 / 14%);
+  --neutral: oklch(0.652 0.012 255);
+  --neutral-dim: oklch(0.652 0.012 255 / 12%);
+
+  --destructive: oklch(0.672 0.196 22);
+
+  --ok: oklch(0.746 0.114 213);
+  --warn: oklch(0.812 0.132 78);
+
+  --radius: 4px;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
   }
-}
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  html {
+    @apply font-sans;
+    /* Dark-only: prevents a white flash before paint and tells the browser to
+       render form controls and scrollbars in dark. */
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-size: 13px;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Every number in the product: monospace, tabular, so columns align. */
+  .num {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+    letter-spacing: -0.01em;
+  }
+
+  /* Dense table defaults. shadcn's table ships with comfortable padding meant
+     for a handful of rows; the signal feed shows hundreds. */
+  .table-dense :is(th, td) {
+    padding-block: 6px;
+    padding-inline: 8px;
+    vertical-align: top;
+  }
+
+  .table-dense th {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+    white-space: nowrap;
+  }
+
+  .table-dense tbody tr {
+    border-top: 1px solid var(--border);
+  }
+
+  .table-dense tbody tr:hover {
+    background: var(--surface);
+  }
+
+  /* Respect the OS setting. Score bars and row transitions are the only
+     motion in the product, and neither carries meaning. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 }
