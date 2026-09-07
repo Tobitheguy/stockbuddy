@@ -1,4 +1,5 @@
 import {
+  date,
   boolean,
   check,
   index,
@@ -208,8 +209,20 @@ export const signals = pgTable(
      * an industry without naming a company. Those are the second-order reads
      * this tool exists for, so they are first-class rows, not a special case.
      */
+    /**
+     * ON DELETE RESTRICT, deliberately.
+     *
+     * This was `set null`, and the comment claimed a deleted ticker would turn
+     * its signals into sector-level ones. That was simply false: the
+     * signals_symbol_or_sector CHECK rejects a row with neither, so the DELETE
+     * failed with a confusing constraint violation every time. RESTRICT fails
+     * at the foreign key instead, which says what is actually happening.
+     *
+     * Tickers should be retired by setting `is_active = false`, never deleted.
+     * A delisted company's signals are exactly the history /stats needs.
+     */
     symbol: text("symbol").references(() => tickers.symbol, {
-      onDelete: "set null",
+      onDelete: "restrict",
     }),
     sector: text("sector"),
 
@@ -304,7 +317,21 @@ export const signalOutcomes = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (t) => [index("signal_outcomes_pending_idx").on(t.updatedAt)],
+  (t) => [
+    /**
+     * Partial index on the actual work queue: outcomes still missing a price.
+     *
+     * The previous version indexed `updated_at` alone, which Postgres could
+     * not use for "find rows where price_5d is null" — EXPLAIN showed a Seq
+     * Scan regardless of table size. Same mistake the items queue avoided;
+     * mirrored here.
+     */
+    index("signal_outcomes_pending_idx")
+      .on(t.updatedAt)
+      .where(
+        sql`${t.price1d} is null or ${t.price5d} is null or ${t.price20d} is null`,
+      ),
+  ],
 );
 
 // ---------------------------------------------------------------------------
@@ -322,13 +349,57 @@ export const prices = pgTable(
     symbol: text("symbol")
       .notNull()
       .references(() => tickers.symbol, { onDelete: "cascade" }),
-    /** Market date (UTC midnight), not an intraday instant. */
-    ts: timestamp("ts", { withTimezone: true }).notNull(),
+    /**
+     * A calendar DATE, not a timestamp.
+     *
+     * This was a timestamptz and it was a real bug: two rows for the same day
+     * at 00:00:00.000Z and 00:00:00.001Z both satisfied the primary key,
+     * inventing a phantom trading day and permanently desyncing the +1/+5/+20
+     * offset arithmetic for that symbol. A `date` column makes the duplicate
+     * impossible at the type level instead of relying on every writer to
+     * truncate correctly.
+     */
+    marketDate: date("market_date").notNull(),
     close: numeric("close", { precision: 14, scale: 4 }).notNull(),
   },
   (t) => [
-    primaryKey({ columns: [t.symbol, t.ts] }),
-    index("prices_symbol_ts_idx").on(t.symbol, t.ts.desc()),
+    primaryKey({ columns: [t.symbol, t.marketDate] }),
+    index("prices_symbol_date_idx").on(t.symbol, t.marketDate.desc()),
+  ],
+);
+
+/**
+ * price_fetch_failures — the gap detector.
+ *
+ * The "+5 trading days = the 5th following row" trick only holds if a missing
+ * row always means "the market was closed". If the price API simply failed for
+ * a day, the resulting `prices` table is bit-for-bit identical to a genuine
+ * holiday, and the outcomes job would silently measure the wrong date and
+ * report a wrong hit rate on /stats — with no way to tell.
+ *
+ * So every failed fetch is recorded. The outcomes job refuses to finalise an
+ * outcome whose window overlaps a recorded failure, and marks it for retry
+ * instead. An unmeasurable outcome is fine; a silently wrong one is not.
+ */
+export const priceFetchFailures = pgTable(
+  "price_fetch_failures",
+  {
+    id: serial("id").primaryKey(),
+    symbol: text("symbol").notNull(),
+    marketDate: date("market_date").notNull(),
+    reason: text("reason").notNull(),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    unique("price_fetch_failures_symbol_date_key").on(t.symbol, t.marketDate),
+    // The outcomes job asks "are there unresolved gaps for this symbol in this
+    // window?" on every finalisation, so the open ones must be cheap to find.
+    index("price_fetch_failures_open_idx")
+      .on(t.symbol, t.marketDate)
+      .where(sql`${t.resolvedAt} is null`),
   ],
 );
 

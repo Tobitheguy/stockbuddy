@@ -34,11 +34,21 @@ CREATE TABLE "llm_usage" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE "price_fetch_failures" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"symbol" text NOT NULL,
+	"market_date" date NOT NULL,
+	"reason" text NOT NULL,
+	"resolved_at" timestamp with time zone,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "price_fetch_failures_symbol_date_key" UNIQUE("symbol","market_date")
+);
+--> statement-breakpoint
 CREATE TABLE "prices" (
 	"symbol" text NOT NULL,
-	"ts" timestamp with time zone NOT NULL,
+	"market_date" date NOT NULL,
 	"close" numeric(14, 4) NOT NULL,
-	CONSTRAINT "prices_symbol_ts_pk" PRIMARY KEY("symbol","ts")
+	CONSTRAINT "prices_symbol_market_date_pk" PRIMARY KEY("symbol","market_date")
 );
 --> statement-breakpoint
 CREATE TABLE "scan_runs" (
@@ -137,7 +147,7 @@ ALTER TABLE "llm_usage" ADD CONSTRAINT "llm_usage_run_id_scan_runs_id_fk" FOREIG
 ALTER TABLE "prices" ADD CONSTRAINT "prices_symbol_tickers_symbol_fk" FOREIGN KEY ("symbol") REFERENCES "public"."tickers"("symbol") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "signal_outcomes" ADD CONSTRAINT "signal_outcomes_signal_id_signals_id_fk" FOREIGN KEY ("signal_id") REFERENCES "public"."signals"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "signals" ADD CONSTRAINT "signals_item_id_items_id_fk" FOREIGN KEY ("item_id") REFERENCES "public"."items"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "signals" ADD CONSTRAINT "signals_symbol_tickers_symbol_fk" FOREIGN KEY ("symbol") REFERENCES "public"."tickers"("symbol") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "signals" ADD CONSTRAINT "signals_symbol_tickers_symbol_fk" FOREIGN KEY ("symbol") REFERENCES "public"."tickers"("symbol") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "watchlist" ADD CONSTRAINT "watchlist_symbol_tickers_symbol_fk" FOREIGN KEY ("symbol") REFERENCES "public"."tickers"("symbol") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE UNIQUE INDEX "items_canonical_url_key" ON "items" USING btree ("canonical_url");--> statement-breakpoint
 CREATE INDEX "items_url_hash_idx" ON "items" USING btree ("url_hash");--> statement-breakpoint
@@ -147,9 +157,10 @@ CREATE INDEX "items_published_at_idx" ON "items" USING btree ("published_at" DES
 CREATE INDEX "items_source_id_idx" ON "items" USING btree ("source_id");--> statement-breakpoint
 CREATE INDEX "items_unprocessed_idx" ON "items" USING btree ("published_at") WHERE "items"."processed_at" is null and "items"."prefilter_reason" is null;--> statement-breakpoint
 CREATE INDEX "llm_usage_created_at_idx" ON "llm_usage" USING btree ("created_at" DESC NULLS LAST);--> statement-breakpoint
-CREATE INDEX "prices_symbol_ts_idx" ON "prices" USING btree ("symbol","ts" DESC NULLS LAST);--> statement-breakpoint
+CREATE INDEX "price_fetch_failures_open_idx" ON "price_fetch_failures" USING btree ("symbol","market_date") WHERE "price_fetch_failures"."resolved_at" is null;--> statement-breakpoint
+CREATE INDEX "prices_symbol_date_idx" ON "prices" USING btree ("symbol","market_date" DESC NULLS LAST);--> statement-breakpoint
 CREATE INDEX "scan_runs_started_at_idx" ON "scan_runs" USING btree ("started_at" DESC NULLS LAST);--> statement-breakpoint
-CREATE INDEX "signal_outcomes_pending_idx" ON "signal_outcomes" USING btree ("updated_at");--> statement-breakpoint
+CREATE INDEX "signal_outcomes_pending_idx" ON "signal_outcomes" USING btree ("updated_at") WHERE "signal_outcomes"."price_1d" is null or "signal_outcomes"."price_5d" is null or "signal_outcomes"."price_20d" is null;--> statement-breakpoint
 CREATE INDEX "signals_score_idx" ON "signals" USING btree ("score" DESC NULLS LAST);--> statement-breakpoint
 CREATE INDEX "signals_symbol_idx" ON "signals" USING btree ("symbol");--> statement-breakpoint
 CREATE INDEX "signals_created_at_idx" ON "signals" USING btree ("created_at" DESC NULLS LAST);--> statement-breakpoint

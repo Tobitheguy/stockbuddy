@@ -1,5 +1,5 @@
 {
-  "id": "17662f5a-0409-43bb-b14e-559df65620c4",
+  "id": "e49ce655-ee25-43ec-9024-69ee5128165a",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -332,6 +332,88 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.price_fetch_failures": {
+      "name": "price_fetch_failures",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "symbol": {
+          "name": "symbol",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "market_date": {
+          "name": "market_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "resolved_at": {
+          "name": "resolved_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "price_fetch_failures_open_idx": {
+          "name": "price_fetch_failures_open_idx",
+          "columns": [
+            {
+              "expression": "symbol",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "market_date",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"price_fetch_failures\".\"resolved_at\" is null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "price_fetch_failures_symbol_date_key": {
+          "name": "price_fetch_failures_symbol_date_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "symbol",
+            "market_date"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.prices": {
       "name": "prices",
       "schema": "",
@@ -342,9 +424,9 @@
           "primaryKey": false,
           "notNull": true
         },
-        "ts": {
-          "name": "ts",
-          "type": "timestamp with time zone",
+        "market_date": {
+          "name": "market_date",
+          "type": "date",
           "primaryKey": false,
           "notNull": true
         },
@@ -356,8 +438,8 @@
         }
       },
       "indexes": {
-        "prices_symbol_ts_idx": {
-          "name": "prices_symbol_ts_idx",
+        "prices_symbol_date_idx": {
+          "name": "prices_symbol_date_idx",
           "columns": [
             {
               "expression": "symbol",
@@ -366,7 +448,7 @@
               "nulls": "last"
             },
             {
-              "expression": "ts",
+              "expression": "market_date",
               "isExpression": false,
               "asc": false,
               "nulls": "last"
@@ -394,11 +476,11 @@
         }
       },
       "compositePrimaryKeys": {
-        "prices_symbol_ts_pk": {
-          "name": "prices_symbol_ts_pk",
+        "prices_symbol_market_date_pk": {
+          "name": "prices_symbol_market_date_pk",
           "columns": [
             "symbol",
-            "ts"
+            "market_date"
           ]
         }
       },
@@ -594,6 +676,7 @@
             }
           ],
           "isUnique": false,
+          "where": "\"signal_outcomes\".\"price_1d\" is null or \"signal_outcomes\".\"price_5d\" is null or \"signal_outcomes\".\"price_20d\" is null",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -813,7 +896,7 @@
           "columnsTo": [
             "symbol"
           ],
-          "onDelete": "set null",
+          "onDelete": "restrict",
           "onUpdate": "no action"
         }
       },
