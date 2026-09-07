@@ -1,5 +1,5 @@
 {
-  "_comment": "Normalized ingestion items for developing and testing Steps 3-5 without network access. Items 1-11 are real, captured verbatim from live feeds on 2026-09-04/06/08 (see fixtures/raw/ for the source payloads). Items 12-20 are authored test cases covering event types and second-order reasoning the real capture did not happen to contain; they are marked synthetic: true. Where an item carries an `expected` block it doubles as an eval assertion for the scorer - see docs/evals.md.",
+  "_comment": "Normalized ingestion items for developing and testing Steps 3-5 without network access. 23 items: fx-001..fx-011 are real, captured verbatim from live feeds on 2026-09-04/06/08 (see fixtures/raw/ for the source payloads); fx-012..fx-023 are authored test cases covering event types and second-order reasoning the real capture did not contain, and are marked synthetic: true. Every enabled source in src/config/source-seed.ts has at least one fixture. 21 of 23 items carry an `expected` block, which doubles as a machine-checkable scorer assertion. Assertion fields: symbols, eventType, direction, magnitudeMin, confidenceMax, horizon, scoreMax, triageDrop, dedupeAgainst, secondaryImpacts, minSecondaryImpacts, requiresSplitDirection, secondOrderRequired. `note` is human context only and is never asserted on.",
   "items": [
     {
       "id": "fx-001",
@@ -38,6 +38,8 @@
       "publishedAt": "2026-09-04T21:20:36Z",
       "synthetic": false,
       "expected": {
+        "triageDrop": true,
+        "scoreMax": 10,
         "note": "Non-traded REIT. Should triage out or produce a very low score - not every filing is a signal."
       }
     },
@@ -87,6 +89,8 @@
       "publishedAt": "2026-09-06T19:08:00Z",
       "synthetic": false,
       "expected": {
+        "triageDrop": true,
+        "scoreMax": 0,
         "note": "Danish-language insider notice from a non-US-listed issuer. Stage A triage must drop this before it reaches the expensive scorer."
       }
     },
@@ -99,6 +103,8 @@
       "publishedAt": "2026-09-06T19:52:00Z",
       "synthetic": false,
       "expected": {
+        "triageDrop": true,
+        "scoreMax": 0,
         "note": "Oslo-listed, not US-listed. Genuinely material news for the issuer, but out of universe - triage must drop it on exchange, not on materiality."
       }
     },
@@ -113,6 +119,10 @@
       "expected": {
         "eventType": "regulatory_policy",
         "direction": "bullish",
+        "secondaryImpacts": [
+          { "symbol": "COP", "direction": "bullish", "why": "largest NPR-A leaseholder" },
+          { "sector": "oil_gas_equipment_services", "direction": "bullish" }
+        ],
         "note": "Second-order: names no company. Should map to Alaska North Slope operators and oilfield services as a sector-level signal."
       }
     },
@@ -125,6 +135,8 @@
       "publishedAt": "2026-09-04T15:00:00Z",
       "synthetic": false,
       "expected": {
+        "triageDrop": true,
+        "scoreMax": 10,
         "note": "Routine, private bank, immaterial. Should score near zero."
       }
     },
@@ -155,7 +167,17 @@
       "synthetic": true,
       "expected": {
         "eventType": "regulatory_policy",
-        "note": "SECOND-ORDER TEST. Names no company. Correct output is a split: bullish on domestic producers (NUE, STLD, CLF, X) who gain a price umbrella, bearish on steel-consuming manufacturers (appliance, auto, homebuilders) who eat the input cost. A scorer that only returns one side of this has not understood it."
+        "requiresSplitDirection": true,
+        "secondaryImpacts": [
+          { "symbol": "NUE", "direction": "bullish", "why": "domestic producer gains price umbrella" },
+          { "symbol": "STLD", "direction": "bullish" },
+          { "symbol": "CLF", "direction": "bullish" },
+          { "symbol": "X", "direction": "bullish" },
+          { "sector": "household_appliances", "direction": "bearish", "why": "steel is a primary input cost" },
+          { "sector": "automobiles", "direction": "bearish" },
+          { "sector": "homebuilding", "direction": "bearish" }
+        ],
+        "note": "SECOND-ORDER TEST. Names no company. Correct output is a split: bullish on domestic producers who gain a price umbrella, bearish on steel-consuming manufacturers who eat the input cost. A scorer that returns only one side of this has not understood it. The harness asserts at least one bullish AND one bearish signal from this single item."
       }
     },
     {
@@ -170,7 +192,12 @@
         "symbols": ["VRT"],
         "eventType": "contract_win",
         "direction": "bullish",
-        "note": "SECOND-ORDER TEST. First-order is VRT. Second-order is the regional utility that now serves 1.2 GW of new load, and the electrical equipment suppliers (transformers, switchgear). A good rationale names at least one non-obvious beneficiary."
+        "minSecondaryImpacts": 1,
+        "secondaryImpacts": [
+          { "symbol": "AEP", "direction": "bullish", "why": "serves central Ohio; 1.2 GW of new load" },
+          { "sector": "electrical_equipment", "direction": "bullish", "why": "transformers and switchgear demand" }
+        ],
+        "note": "SECOND-ORDER TEST. First-order is VRT and is obvious. The tool earns its keep only if the rationale also reaches the regional utility absorbing 1.2 GW of new load, or the electrical-equipment suppliers. Harness asserts at least one non-obvious beneficiary beyond VRT."
       }
     },
     {
@@ -200,7 +227,8 @@
         "eventType": "regulatory_policy",
         "direction": "bearish",
         "magnitudeMin": 4,
-        "note": "SECOND-ORDER TEST. Bearish first-order. The non-obvious read is bullish for the closest competitor whose rival therapy just lost its main threat."
+        "secondOrderRequired": true,
+        "note": "SECOND-ORDER TEST. Bearish first-order. The non-obvious read is bullish for the closest competitor whose rival therapy just lost its main threat. The issuer is deliberately unnamed, so no specific competitor ticker can be asserted; the harness checks only that the rationale reaches for a competitor read-through at all."
       }
     },
     {
@@ -216,7 +244,8 @@
         "direction": "bullish",
         "magnitudeMin": 4,
         "horizon": "months",
-        "note": "Target is bullish and largely already priced. The tradable read is often the acquirer (usually bearish on dilution) and unacquired sector peers that just got re-rated."
+        "secondOrderRequired": true,
+        "note": "Target is bullish and largely already priced by the time this is read. The tradable read is the acquirer (often bearish on dilution) and unacquired sector peers that just got re-rated. Both parties are deliberately unnamed, so the harness checks only that the rationale reaches beyond the target."
       }
     },
     {
@@ -259,6 +288,52 @@
       "expected": {
         "confidenceMax": 0.6,
         "note": "Unnamed-sources rumor with an explicit may-not-happen hedge. Should score with visibly lower confidence than a filed 8-K describing a completed transaction. Tests that confidence tracks source quality rather than headline drama."
+      }
+    },
+
+    {
+      "id": "fx-021",
+      "source": "SEC EDGAR 10-Q",
+      "canonicalUrl": "https://example-fixtures.invalid/10q-margin-compression",
+      "title": "10-Q - Quarterly report for the period ended 2026-07-31",
+      "summary": "Revenue for the quarter increased 4 percent year over year to $1.14 billion. Gross margin declined to 31.2 percent from 38.9 percent in the prior-year period, primarily reflecting higher input costs and unfavorable product mix. Inventory increased 27 percent year over year while revenue grew 4 percent. The company recorded a $46 million charge related to excess and obsolete inventory.",
+      "publishedAt": "2026-09-04T21:00:00Z",
+      "synthetic": true,
+      "expected": {
+        "eventType": "earnings",
+        "direction": "bearish",
+        "magnitudeMin": 3,
+        "note": "Covers the 10-Q source, which had no fixture. The headline revenue number is positive; the signal is in the margin collapse and the inventory-to-revenue divergence. Tests whether the scorer reads the filing body rather than the top line."
+      }
+    },
+    {
+      "id": "fx-022",
+      "source": "SEC EDGAR 10-K",
+      "canonicalUrl": "https://example-fixtures.invalid/10k-going-concern",
+      "title": "10-K - Annual report for the fiscal year ended 2026-06-30",
+      "summary": "The accompanying consolidated financial statements have been prepared assuming the Company will continue as a going concern. The Company has incurred recurring losses from operations and has a net capital deficiency that raise substantial doubt about its ability to continue as a going concern. Management's plans in regard to these matters are described in Note 2. Cash and cash equivalents at year end were $18.3 million against current liabilities of $71.9 million.",
+      "publishedAt": "2026-09-04T22:30:00Z",
+      "synthetic": true,
+      "expected": {
+        "eventType": "earnings",
+        "direction": "bearish",
+        "magnitudeMin": 4,
+        "note": "Covers the 10-K source, which had no fixture. A going-concern qualification is buried in boilerplate-looking language but is one of the highest-magnitude bearish disclosures that exists. Tests that the scorer is reading for substance, not for dramatic phrasing."
+      }
+    },
+    {
+      "id": "fx-023",
+      "source": "GlobeNewswire - Earnings Releases",
+      "canonicalUrl": "https://example-fixtures.invalid/earnings-inline-guidance-cut",
+      "title": "Reports Third Quarter Results; Revenue Up 11%, Lowers Full-Year Outlook",
+      "summary": "Third quarter revenue rose 11 percent year over year to $872 million, above the high end of the company's prior guidance range. Diluted earnings per share were $0.61 versus $0.54 a year ago. The company now expects full-year revenue of $3.28 billion to $3.32 billion, compared with its prior outlook of $3.45 billion to $3.55 billion, citing softening order rates in its industrial segment entering the fourth quarter.",
+      "publishedAt": "2026-09-04T11:00:00Z",
+      "synthetic": true,
+      "expected": {
+        "eventType": "guidance",
+        "direction": "bearish",
+        "magnitudeMin": 3,
+        "note": "Covers the GlobeNewswire earnings feed, which had no fixture. A beat-and-lower: every backward-looking number is good and the forward number is cut. The correct read is bearish and the correct event type is guidance rather than earnings. This is the single most common way a naive headline-reading scorer gets the direction exactly backwards."
       }
     }
   ]

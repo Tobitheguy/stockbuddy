@@ -164,11 +164,14 @@ npm run dev
 Steps 1–4 are built against `fixtures/` and need no keys:
 
 - `fixtures/raw/` — real feed payloads captured live, for testing the parsers.
-- `fixtures/items.json` — 20 normalized items. Eleven are real; nine are
+- `fixtures/items.json` — 23 normalized items. Eleven are real; twelve are
   authored to cover event types and second-order reasoning the capture did not
-  contain. Items carrying an `expected` block double as scorer assertions,
-  including the contract-win injection test (`fx-012`) and the tariff
-  split-direction test (`fx-013`).
+  contain. Every enabled source has at least one fixture. 21 items carry an
+  `expected` block that doubles as a machine-checkable scorer assertion —
+  including the contract-win injection test (`fx-012`), the tariff
+  split-direction test (`fx-013`), and the beat-and-lower test (`fx-023`),
+  which is the most common way a headline-reading scorer gets direction
+  exactly backwards.
 
 ```bash
 npm run build     # must pass before every PR

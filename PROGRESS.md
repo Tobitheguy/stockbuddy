@@ -36,10 +36,14 @@ Living status doc. Updated at every checkpoint.
 - `src/config/source-seed.ts` — 12 seed sources, each carrying its live
   verification result, poll interval, quality weight and body-storage rule.
 - `fixtures/raw/` — four real feed payloads captured live.
-- `fixtures/items.json` — 20 normalized items, 11 real and 9 authored, with
-  `expected` assertions on 13 of them.
+- `fixtures/items.json` — 23 normalized items, 11 real and 12 authored, with
+  machine-checkable `expected` assertions on 21 of them. Every enabled source
+  has at least one fixture.
 - Git initialized, branch `main`, remote set to the GitHub repo. **Not pushed
   yet** — push is an ask-first action.
+- Cross-model review by a Sonnet reviewer: `docs/reviews/step-0.md`.
+  0 blockers, 4 major, 4 minor, 1 nit. All four majors fixed before this
+  checkpoint was raised (see below).
 
 ---
 
@@ -52,6 +56,18 @@ Living status doc. Updated at every checkpoint.
 | Scoring model | `claude-opus-5` | Runs only on triage survivors. Second-order reasoning is the whole point of the tool, so this is where the budget goes. |
 | Project location | Repo root, package name `stockbuddy` | The folder `Stockbuddy` has a capital letter, which npm rejects as a package name; the package is renamed rather than the folder. |
 | Poll intervals | 60s for EDGAR + wires, 300–900s for the rest | Catalysts originate in filings and wires. Government feeds move slowly enough that a 60s poll is wasted requests. |
+| Seed fields vs DB columns | `store_body` becomes a real column on `sources`; `verified` and `notes` stay seed-only | Raised by review. `store_body` is enforced at ingest time on every scan, so it has to live in the DB. `verified`/`notes` are build-time provenance about how the source list was assembled — they belong in version control, not in a row that a runtime toggle could contradict. |
+
+### Review fixes applied at CP0
+
+| Finding | Fix |
+|---|---|
+| Second-order fixtures encoded the hard part only as prose | Added structured `secondaryImpacts`, `requiresSplitDirection`, `minSecondaryImpacts`, `secondOrderRequired` so a harness can assert them. |
+| Docs claimed 13 `expected` blocks; actual was 18 | Recounted programmatically. Now 21 of 23, stated from a verified count. |
+| Three enabled sources had no fixture (10-Q, 10-K, GlobeNewswire earnings) | Added `fx-021`, `fx-022`, `fx-023`. Coverage gap now provably zero. |
+| `store_body` / `verified` / `notes` had no schema destination | Decided above, before the CP2 migration makes it expensive. |
+| `npm run test` exited 1 with no test files | Added `--passWithNoTests`. |
+| Dangling reference to a nonexistent `docs/evals.md` | Removed; the assertion vocabulary is documented in the fixture file itself. |
 
 ---
 
@@ -82,8 +98,14 @@ Living status doc. Updated at every checkpoint.
 2. **Business Wire / PR Newswire.** Both refused the probe. I can try a
    server-side fetch with a realistic User-Agent during Step 3 and enable them
    only if they respond. Say if you'd rather I leave them off entirely.
-3. **Daily LLM budget.** Defaulted to $2.00/day. I'll report actual measured
-   spend at CP4 once real volume is scored, and you can move it then.
+3. **Daily LLM budget.** Defaulted to $2.00/day. The review flagged this as
+   likely tight, and I agree: Form 4 is very high volume, and the three
+   GlobeNewswire feeds overlap so the same release can arrive up to three
+   times. Two mitigations land in Step 3 before any spend happens — dedupe
+   runs *before* triage, not after, and the three GlobeNewswire feeds get
+   deduped against each other by canonical URL. I'll report measured $/item
+   and $/day at CP4 against real volume, and you can set the real number then
+   rather than guessing now.
 
 Nothing here blocks CP1–CP2, which need no accounts.
 
