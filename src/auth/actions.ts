@@ -2,7 +2,7 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { verifyPassword } from "./password";
+import { authenticate } from "./users";
 import {
   SESSION_COOKIE,
   SESSION_MAX_AGE_SECONDS,
@@ -12,8 +12,9 @@ import {
 /**
  * Sign-in and sign-out.
  *
- * One account, so there is no user lookup: the email must equal ADMIN_EMAIL
- * and the password must verify against ADMIN_PASSWORD_HASH.
+ * Accounts are rows in `users`, each with its own scrypt hash. ADMIN_EMAIL and
+ * ADMIN_PASSWORD_HASH seed the first row on first use, so a deployment that
+ * only ever had those keeps working without any migration step.
  */
 
 /**
@@ -31,45 +32,39 @@ const LOCKOUT_MS = 15 * 60 * 1000;
 let failures = 0;
 let lockedUntil = 0;
 
-function config(): { email: string; hash: string } | null {
-  const email = process.env.ADMIN_EMAIL?.trim().toLowerCase();
-  const hash = process.env.ADMIN_PASSWORD_HASH;
-  if (!email || !hash) return null;
-  return { email, hash };
-}
-
 export type LoginState = { error: string | null };
 
 export async function login(
   _prev: LoginState,
   formData: FormData,
 ): Promise<LoginState> {
-  const settings = config();
-  if (!settings) {
-    // A misconfigured deployment must fail closed and say why — not fall back
-    // to letting anyone in, and not show a generic error that sends the owner
-    // hunting for a wrong password that was never the problem.
-    return {
-      error:
-        "Sign-in is not configured. Set ADMIN_EMAIL and ADMIN_PASSWORD_HASH, " +
-        "then redeploy. Generate the hash with: npm run set-password",
-    };
-  }
-
   if (Date.now() < lockedUntil) {
     const minutes = Math.ceil((lockedUntil - Date.now()) / 60_000);
     return { error: `Too many attempts. Try again in ${minutes} minute(s).` };
   }
 
-  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const email = String(formData.get("email") ?? "");
   const password = String(formData.get("password") ?? "");
 
-  // Verify the password even when the email is wrong, so the response time
-  // does not reveal which of the two was correct.
-  const passwordOk = await verifyPassword(password, settings.hash);
-  const ok = passwordOk && email === settings.email;
+  // Accounts live in the database now; ADMIN_EMAIL / ADMIN_PASSWORD_HASH seed
+  // the first row on first use, so an existing deployment is unaffected.
+  let user: Awaited<ReturnType<typeof authenticate>>;
+  try {
+    user = await authenticate(email, password);
+  } catch (err) {
+    // A misconfigured deployment must fail closed and say why — not fall back
+    // to letting anyone in, and not show a generic error that sends the owner
+    // hunting for a wrong password that was never the problem.
+    console.error("[auth] sign-in failed:", err);
+    return {
+      error:
+        "Sign-in is unavailable — the account store could not be reached. " +
+        "If this is a new deployment, set ADMIN_EMAIL and ADMIN_PASSWORD_HASH " +
+        "(npm run set-password) or add a user with npm run users -- add.",
+    };
+  }
 
-  if (!ok) {
+  if (!user) {
     failures++;
     if (failures >= MAX_FAILURES) {
       lockedUntil = Date.now() + LOCKOUT_MS;

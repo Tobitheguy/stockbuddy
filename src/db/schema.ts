@@ -470,6 +470,31 @@ export const watchlist = pgTable("watchlist", {
 });
 
 // ---------------------------------------------------------------------------
+// users — who may sign in, and who gets the emails.
+//
+// Replaces the single ADMIN_EMAIL/ADMIN_PASSWORD_HASH pair. Two people cannot
+// share one password without also sharing the ability to lock each other out,
+// and per-user hashes cost nothing here. ADMIN_EMAIL still seeds the first
+// row so an existing deployment keeps working untouched.
+// ---------------------------------------------------------------------------
+
+export const users = pgTable("users", {
+  /** Lower-cased at write time; the login comparison is exact. */
+  email: text("email").primaryKey(),
+  /** scrypt, same format as the original ADMIN_PASSWORD_HASH. */
+  passwordHash: text("password_hash").notNull(),
+  /**
+   * Alerts and the daily digest go to every user with this set. Separate from
+   * sign-in on purpose: someone may need access without wanting the mail.
+   */
+  receivesAlerts: boolean("receives_alerts").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
+});
+
+// ---------------------------------------------------------------------------
 // alerts — the signals important enough to interrupt for.
 //
 // The feed is a place the user visits; an alert is the tool reaching out.

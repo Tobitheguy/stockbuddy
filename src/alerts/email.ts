@@ -1,4 +1,5 @@
 import { displayScore } from "@/scoring";
+import { alertRecipients } from "@/auth/users";
 import { markEmailed, pendingEmailAlerts } from "./engine";
 
 /**
@@ -21,9 +22,11 @@ export async function sendAlertEmailIfConfigured(): Promise<{
   skipped: string | null;
 }> {
   const key = process.env.RESEND_API_KEY;
-  const to = process.env.ADMIN_EMAIL;
   if (!key) return { sent: 0, skipped: "RESEND_API_KEY not set" };
-  if (!to) return { sent: 0, skipped: "ADMIN_EMAIL not set" };
+
+  // Everyone with alerts enabled, not one hard-coded address.
+  const to = await alertRecipients();
+  if (to.length === 0) return { sent: 0, skipped: "no alert recipients" };
 
   const pending = await pendingEmailAlerts();
   if (pending.length === 0) return { sent: 0, skipped: null };
@@ -59,7 +62,7 @@ export async function sendAlertEmailIfConfigured(): Promise<{
     },
     body: JSON.stringify({
       from: process.env.ALERT_EMAIL_FROM ?? FROM_FALLBACK,
-      to: [to],
+      to,
       subject: `Signal Desk: ${pending.length} alert(s) — top ${displayScore(Math.max(...pending.map((p) => p.score)))}`,
       html,
     }),

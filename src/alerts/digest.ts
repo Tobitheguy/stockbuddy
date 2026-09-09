@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import { db } from "@/db/client";
+import { alertRecipients } from "@/auth/users";
 import { displayScore } from "@/scoring";
 
 /**
@@ -37,9 +38,11 @@ export async function sendDailyDigestIfConfigured(): Promise<{
   skipped: string | null;
 }> {
   const key = process.env.RESEND_API_KEY;
-  const to = process.env.ADMIN_EMAIL;
   if (!key) return { sent: false, skipped: "RESEND_API_KEY not set" };
-  if (!to) return { sent: false, skipped: "ADMIN_EMAIL not set" };
+
+  // Everyone with alerts enabled, not one hard-coded address.
+  const to = await alertRecipients();
+  if (to.length === 0) return { sent: false, skipped: "no digest recipients" };
 
   const top = await rows<DigestSignal>(sql`
     select sg.symbol, sg.sector, sg.direction,
@@ -115,7 +118,7 @@ export async function sendDailyDigestIfConfigured(): Promise<{
     },
     body: JSON.stringify({
       from: process.env.ALERT_EMAIL_FROM ?? "Signal Desk <onboarding@resend.dev>",
-      to: [to],
+      to,
       subject: `Signal Desk digest — ${top.length} top signal(s)`,
       html,
     }),
