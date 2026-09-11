@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # So a red main can be re-checked after a fix without an empty commit.
+  workflow_dispatch:
+
+# A newer push makes an in-flight run pointless. Cancel it rather than paying
+# for an answer about code that has already been replaced.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      # The app reads every secret lazily, at first use, precisely so that
+      # `next build` works without them — see the comment in src/db/client.ts.
+      # These placeholders exist to prove that stays true: if someone moves a
+      # read to module scope, the build breaks here rather than in production.
+      # SESSION_SECRET has a 32-character minimum, hence the padding.
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+      SESSION_SECRET: ci-placeholder-secret-not-used-for-anything-real
+      CRON_SECRET: ci-placeholder-cron-secret-0000000000000000
+      SEC_USER_AGENT: stockbuddy-ci (ci@example.com)
+      NEXT_TELEMETRY_DISABLED: "1"
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      # `ci` not `install`: it installs exactly the lockfile and fails if
+      # package.json has drifted from it, which is the point of running here.
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm run test
+
+      # Last, because it is the slowest and the three above localise a failure
+      # far better than a build error does.
+      - name: Build
+        run: npm run build

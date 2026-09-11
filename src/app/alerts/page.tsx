@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { desc, eq, sql } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { viewer } from "@/auth/viewer";
 import { db } from "@/db/client";
 import { alerts, items, signals } from "@/db/schema";

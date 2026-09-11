@@ -88,7 +88,10 @@ export default async function TickerPage({ params }: PageProps<"/t/[symbol]">) {
   // The current read: the strongest live-scored signal of the last 7 days
   // drives the plain-language summary, with the week's direction tally as
   // context. Live-scored, so yesterday's story does not keep the headline.
-  const weekAgo = new Date(Date.now() - 7 * 86_400_000);
+  //
+  // The window is cut in SQL rather than from a JS clock, for the same reason
+  // liveScore() computes decay there: one clock decides what "now" means, so
+  // the cutoff and the ranking cannot disagree with each other.
   const recent = await db()
     .select({
       liveScore: liveScore(),
@@ -99,7 +102,7 @@ export default async function TickerPage({ params }: PageProps<"/t/[symbol]">) {
     .from(signals)
     .innerJoin(items, eq(items.id, signals.itemId))
     .where(
-      sql`${signals.symbol} = ${symbol} and ${items.publishedAt} >= ${weekAgo} and ${signals.model} <> 'rules'`,
+      sql`${signals.symbol} = ${symbol} and ${items.publishedAt} >= now() - interval '7 days' and ${signals.model} <> 'rules'`,
     )
     .orderBy(desc(liveScore()))
     .limit(25);
