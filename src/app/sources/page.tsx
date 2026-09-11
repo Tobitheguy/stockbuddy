@@ -113,8 +113,23 @@ export default async function SourcesPage() {
   }
 
   const enabled = rows.filter((r) => r.enabled);
-  const failing = enabled.filter((r) => r.lastError);
-  const healthy = enabled.length - failing.length;
+
+  /*
+   * A feed is "failing" once it has missed more than once in a row, not on a
+   * single miss.
+   *
+   * Polling 26 feeds every few minutes means one is essentially always
+   * mid-timeout — a transient SEC blip that clears on the next fetch. Counting
+   * those turned the banner permanently red on a scanner that was fine, which
+   * trains the reader to ignore it and hides the case it exists for: a feed
+   * that is genuinely gone.
+   *
+   * The per-row status below still shows the single miss, so nothing is
+   * concealed. This governs only whether the page shouts about it.
+   */
+  const failing = enabled.filter((r) => r.lastError && r.errorStreak > 1);
+  const blipping = enabled.filter((r) => r.lastError && r.errorStreak <= 1);
+  const healthy = enabled.length - failing.length - blipping.length;
 
   return (
     <>
@@ -134,8 +149,12 @@ export default async function SourcesPage() {
           title={`${failing.length} of ${enabled.length} enabled sources are failing`}
           body={
             <>
-              {healthy} are healthy. A failing source never stops the others —
-              the scan completes regardless. Errors are shown per row below.
+              {healthy} are healthy
+              {blipping.length > 0
+                ? `, ${blipping.length} missed a single fetch and will retry`
+                : ""}
+              . A failing source never stops the others — the scan completes
+              regardless. Errors are shown per row below.
             </>
           }
         />
