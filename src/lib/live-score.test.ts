@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { liveScore } from "./live-score";
-import { computeBaseScore, computeScore } from "@/scoring";
+import { computeBaseScore, computeScore, HALF_LIFE_HOURS } from "@/scoring";
 import type { Horizon } from "@/lib/types";
 
 /**
@@ -20,15 +20,21 @@ describe("liveScore SQL", () => {
     return JSON.stringify(q).replace(/\s+/g, " ");
   };
 
+  /*
+   * Derived from HALF_LIFE_HOURS rather than repeating the numbers, which is
+   * the whole job: a literal table here would be a THIRD copy of the same
+   * constants, and a test that has to be edited in lockstep with the code it
+   * guards cannot catch the drift it exists to catch — it just fails, gets
+   * updated to match, and proves nothing.
+   *
+   * This way, changing a half-life in scoring.ts and forgetting the SQL fails
+   * here, and changing both correctly passes without touching the test.
+   */
   it("carries the same half-lives as the TypeScript scorer", () => {
     const text = sqlText();
-    for (const [horizon, hours] of [
-      ["days", "36"],
-      ["weeks", "168"],
-      ["months", "720"],
-    ] as const) {
+    for (const [horizon, hours] of Object.entries(HALF_LIFE_HOURS)) {
       expect(text).toContain(horizon);
-      expect(text).toContain(hours);
+      expect(text).toContain(`then ${hours.toFixed(1)}`);
     }
   });
 
@@ -53,8 +59,7 @@ describe("base score and decayed score agree", () => {
 
         const base = computeBaseScore(inputs);
         const decayed = computeScore({ ...inputs, publishedAt, now, horizon });
-        const halfLife = { days: 36, weeks: 168, months: 720 }[horizon];
-        const expected = base * Math.pow(0.5, ageHours / halfLife);
+        const expected = base * Math.pow(0.5, ageHours / HALF_LIFE_HOURS[horizon]);
 
         expect(decayed).toBeCloseTo(expected, 1);
       }

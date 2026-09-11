@@ -26,13 +26,43 @@ describe("recencyDecay", () => {
     expect(recencyDecay(hoursAgo(24), NOW, "days")).toBeGreaterThan(0.6);
   });
 
-  it("decays a long-horizon signal far more slowly than a short one", () => {
+  it("decays a long-horizon signal more slowly than a short one", () => {
     // The point of horizon-aware decay: a tariff is still actionable a week
     // later; an earnings surprise is not.
     const week = 24 * 7;
     const short = recencyDecay(hoursAgo(week), NOW, "days");
     const long = recencyDecay(hoursAgo(week), NOW, "months");
-    expect(long).toBeGreaterThan(short * 20);
+    expect(long).toBeGreaterThan(short);
+  });
+
+  /**
+   * The bound that keeps the feed a feed.
+   *
+   * The gradient above used to be 20:1 — 720 hours against 36 — and a
+   * high-scoring "weeks" signal became unbeatable: measured on live data a
+   * 68-point filing still displayed 50 after three days, against a 95th
+   * percentile of 41 for everything scored that week. Nothing new could reach
+   * the top.
+   *
+   * So the gradient is asserted in BOTH directions. Long horizons must decay
+   * slower, and they must still decay fast enough that a stale exceptional
+   * signal drops below what a fresh strong one can reach — which is the
+   * property that actually failed, and the one worth pinning.
+   *
+   * The numbers are the measured ones: 68 was the highest "weeks" base score
+   * in the database, 41 the 95th percentile of everything scored that week.
+   * Under the old 168-hour half-life the stale 68 displayed as 50 and nothing
+   * published since could catch it.
+   */
+  it("lets a fresh strong signal overtake a stale exceptional one", () => {
+    const threeDays = 24 * 3;
+    const STALE_EXCEPTIONAL = 68;
+    const FRESH_STRONG = 41;
+
+    for (const horizon of ["days", "weeks", "months"] as const) {
+      const stale = STALE_EXCEPTIONAL * recencyDecay(hoursAgo(threeDays), NOW, horizon);
+      expect(stale).toBeLessThan(FRESH_STRONG);
+    }
   });
 
   it("never reaches zero, so an old signal ranks last but stays visible", () => {

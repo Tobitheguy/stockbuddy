@@ -51,14 +51,38 @@ export type ScoreInput = {
  * thing and then hidden it.
  *
  * 36 hours keeps 63% overnight, which is the actual requirement: a catalyst
- * found while you slept must still be at the top when you wake up. Longer
- * horizons scale with it — a tariff or a capacity decision is still worth
- * reading a fortnight later, and a merger process runs for months.
+ * found while you slept must still be at the top when you wake up.
+ *
+ * THE LONGER HORIZONS ARE NOT THE THESIS LENGTH. They used to be — 168 hours
+ * for "weeks", 720 for "months", scaled to how long the trade takes to play
+ * out. That conflates two different things, and the feed is what paid for it.
+ *
+ * Horizon says how long the thesis takes to resolve. Decay says how long the
+ * news stays news. A merger really does run for months, but the headline
+ * announcing it stops being new the next morning. Keying decay to the thesis
+ * made a high-scoring "weeks" signal mathematically unbeatable: measured on
+ * live data, a 68-point filing was still displaying 50 after three days, while
+ * the 95th percentile of everything scored since was 41. Nothing published
+ * that week could reach the top of the feed. The tool had quietly stopped
+ * being a feed and become a leaderboard for one good Monday.
+ *
+ * The gradient is kept because it is real — a capacity decision does stay
+ * worth reading longer than an earnings beat — but it is a tiebreaker now,
+ * not a multiplier. The span is 2:1 rather than the old 20:1, because how long
+ * news stays NEW is roughly the same whatever the thesis length; only how long
+ * it stays INTERESTING varies, and that belongs in magnitude, which the model
+ * already sets.
+ *
+ * The longest horizon gets a three-day half-life, which is the binding
+ * constraint: at three days even a 68-point signal — the highest in the
+ * database — falls to 34, under the 41 that a strong fresh signal reaches. So
+ * a good Monday can still lead the feed on Tuesday, and cannot still be
+ * leading it on Thursday.
  */
-const HALF_LIFE_HOURS: Record<Horizon, number> = {
+export const HALF_LIFE_HOURS: Record<Horizon, number> = {
   days: 36, // overnight, plus a margin
-  weeks: 168, // one week
-  months: 720, // one month
+  weeks: 54, // survives a weekend, not a week
+  months: 72, // three days, and that is the ceiling for everything
 };
 
 const DEFAULT_HALF_LIFE_HOURS = 72;
