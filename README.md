@@ -11,6 +11,13 @@ then measures, afterwards, whether it was right.
 investment advice.** Every signal links to its source and shows the reasoning
 behind it. There are no buy or sell buttons anywhere in the product.
 
+![The ranked signal feed](docs/screenshots/signals-feed.jpg)
+
+The third and fifth rows are the case for the whole tool. *"Oil Hits $100 for
+First Time Since July"* names no company; the scorer resolved it to **DAL** and
+**UAL** and called both bearish, because jet fuel is one of the largest cost
+lines an airline has.
+
 ---
 
 ## What it does
@@ -52,6 +59,22 @@ sources ──▶ scan ──▶ dedupe ──▶ triage ──▶ score ──�
 - **Stats** — hit rate by confidence bucket, event type, source and prompt
   version, with a verdict that refuses to conclude anything below ten
   measured signals.
+
+### The company page
+
+![Price history for DAL](docs/screenshots/company-price.jpg)
+
+![Plain-language read and base rates](docs/screenshots/base-rates.jpg)
+
+Base rates exist so a number has something to be judged against: a 3% move in
+a stock whose ordinary five-day range is ±3.6% is not news. The panel below
+them is the tool reporting that it has *no* track record yet — 0 of the 8
+measurements it needs — rather than computing a hit rate from two cases and
+presenting noise as a finding.
+
+![Every signal recorded against DAL](docs/screenshots/signals-for-symbol.jpg)
+
+Five independent sources, one thesis, each with the reasoning that produced it.
 
 ---
 
