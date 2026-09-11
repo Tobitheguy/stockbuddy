@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { desc, eq, sql } from "drizzle-orm";
+import { viewer } from "@/auth/viewer";
 import { db } from "@/db/client";
 import { alerts, items, signals } from "@/db/schema";
 import { DirectionBadge } from "@/components/direction-badge";
@@ -21,6 +22,8 @@ import type { Direction } from "@/lib/types";
 export const dynamic = "force-dynamic";
 
 export default async function AlertsPage() {
+  const { seesPositions } = await viewer();
+
   const rows = await db()
     .select({
       id: alerts.id,
@@ -92,9 +95,16 @@ export default async function AlertsPage() {
                     ) : null}
                   </td>
                   <td className="align-top whitespace-nowrap text-[12px]">
-                    {r.reason === "held_strong" ? (
+                    {/* "held_strong" means the alert fired only because that
+                        symbol is owned, so the badge names a holding as surely
+                        as the watchlist column does. */}
+                    {r.reason === "held_strong" && seesPositions ? (
                       <span className="rounded-md bg-bearish/10 px-1.5 py-0.5 font-medium text-bearish">
                         your position
+                      </span>
+                    ) : r.reason === "held_strong" ? (
+                      <span className="rounded-md bg-surface px-1.5 py-0.5 text-muted-foreground">
+                        threshold
                       </span>
                     ) : (
                       <span className="rounded-md bg-surface px-1.5 py-0.5 text-muted-foreground">

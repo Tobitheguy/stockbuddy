@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
+import { isSignedIn } from "@/auth/viewer";
 import { db } from "@/db/client";
 import { tickers, watchlist } from "@/db/schema";
 import { fetchQuote, marketDateFor, storeClose } from "@/market/prices";
@@ -17,10 +18,31 @@ import { fetchQuote, marketDateFor, storeClose } from "@/market/prices";
 
 export type ActionResult = { ok: true; note?: string } | { ok: false; error: string };
 
+const READ_ONLY: ActionResult = {
+  ok: false,
+  error: "This deployment is read-only. Sign in to change the watchlist.",
+};
+
+/**
+ * Every mutation below starts here.
+ *
+ * `proxy.ts` already refuses unauthenticated writes, so in a private
+ * deployment this never fires. It is here because a Server Action is a public
+ * POST endpoint whose URL is guessable from the page that renders it, and a
+ * gate that exists in exactly one place is one edit away from not existing.
+ * The cost is a signature check per mutation; the alternative is that a future
+ * change to the matcher silently opens `removeFromWatchlist` to the internet.
+ */
+async function writable(): Promise<boolean> {
+  return isSignedIn();
+}
+
 export async function addToWatchlist(
   symbolRaw: string,
   note?: string,
 ): Promise<ActionResult> {
+  if (!(await writable())) return READ_ONLY;
+
   const symbol = symbolRaw.trim().toUpperCase();
   if (!/^[A-Z][A-Z.\-]{0,9}$/.test(symbol)) {
     return { ok: false, error: `"${symbolRaw}" is not a valid ticker symbol.` };
@@ -91,6 +113,8 @@ export async function setOwned(
   symbolRaw: string,
   owned: boolean,
 ): Promise<ActionResult> {
+  if (!(await writable())) return READ_ONLY;
+
   const symbol = symbolRaw.trim().toUpperCase();
   const updated = await db()
     .update(watchlist)
@@ -109,6 +133,8 @@ export async function setOwned(
 export async function removeFromWatchlist(
   symbolRaw: string,
 ): Promise<ActionResult> {
+  if (!(await writable())) return READ_ONLY;
+
   const symbol = symbolRaw.trim().toUpperCase();
   await db().delete(watchlist).where(eq(watchlist.symbol, symbol));
   revalidatePath("/watchlist");
@@ -117,8 +143,16 @@ export async function removeFromWatchlist(
   return { ok: true };
 }
 
-/** Refresh today's close for every watchlist symbol. */
+/**
+ * Refresh today's close for every watchlist symbol.
+ *
+ * One call fans out to one upstream quote request per row, so this is the most
+ * expensive thing an anonymous caller could reach — the guard matters more
+ * here than anywhere else on this page.
+ */
 export async function refreshWatchlistPrices(): Promise<ActionResult> {
+  if (!(await writable())) return READ_ONLY;
+
   const rows = await db().select({ symbol: watchlist.symbol }).from(watchlist);
   let ok = 0;
   const failed: string[] = [];

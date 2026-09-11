@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { asc, desc, eq, sql } from "drizzle-orm";
+import { viewer } from "@/auth/viewer";
 import { db } from "@/db/client";
 import { tickers, watchlist } from "@/db/schema";
 import { OwnedToggle } from "@/components/owned-toggle";
@@ -19,6 +20,8 @@ import { formatPrice, formatPT, formatReturn } from "@/lib/format";
 export const dynamic = "force-dynamic";
 
 export default async function WatchlistPage() {
+  const { canWrite, seesPositions, signedIn } = await viewer();
+
   const rows = await db()
     .select({
       symbol: watchlist.symbol,
@@ -45,8 +48,14 @@ export default async function WatchlistPage() {
     .from(watchlist)
     .leftJoin(tickers, eq(tickers.symbol, watchlist.symbol))
     // Positions actually held come first — those rows are exposure, not
-    // curiosity, and must never require scrolling to find.
-    .orderBy(desc(watchlist.isOwned), asc(watchlist.addedAt));
+    // curiosity, and must never require scrolling to find. For a visitor who
+    // is not shown holdings, that ordering would leak the same fact the hidden
+    // column withholds, so they get plain add order instead.
+    .orderBy(
+      ...(seesPositions
+        ? [desc(watchlist.isOwned), asc(watchlist.addedAt)]
+        : [asc(watchlist.addedAt)]),
+    );
 
   if (rows.length === 0) {
     return (
@@ -79,7 +88,7 @@ export default async function WatchlistPage() {
         title="Watchlist"
         subtitle={[
           `${rows.length} tracked`,
-          rows.some((r) => r.isOwned)
+          seesPositions && rows.some((r) => r.isOwned)
             ? `${rows.filter((r) => r.isOwned).length} held`
             : null,
           measured.length > 0
@@ -95,13 +104,13 @@ export default async function WatchlistPage() {
           <thead>
             <tr>
               <th className="text-left">Ticker</th>
-              <th className="text-left">Status</th>
+              {seesPositions ? <th className="text-left">Status</th> : null}
               <th className="text-right">Entry price</th>
               <th className="text-right">Latest</th>
               <th className="text-right">Since added</th>
               <th className="text-right">Signals</th>
               <th className="text-left">Added</th>
-              <th className="text-left"></th>
+              {canWrite ? <th className="text-left"></th> : null}
             </tr>
           </thead>
           <tbody>
@@ -121,15 +130,24 @@ export default async function WatchlistPage() {
                     <div className="max-w-[220px] truncate text-[12px] text-muted-foreground">
                       {r.name ?? "—"}
                     </div>
-                    {r.note ? (
+                    {/* Free-text personal annotation. Never shown to a visitor
+                        who is not signed in — there is no telling what a note
+                        says, so it is not the place to start guessing. */}
+                    {signedIn && r.note ? (
                       <div className="mt-0.5 max-w-[260px] text-[12px] text-muted-foreground italic">
                         {r.note}
                       </div>
                     ) : null}
                   </td>
-                  <td className="align-top">
-                    <OwnedToggle symbol={r.symbol} initiallyOwned={r.isOwned} />
-                  </td>
+                  {seesPositions ? (
+                    <td className="align-top">
+                      <OwnedToggle
+                        symbol={r.symbol}
+                        initiallyOwned={r.isOwned}
+                        readOnly={!canWrite}
+                      />
+                    </td>
+                  ) : null}
                   <td className="num align-top text-right">
                     {entry !== null ? `$${formatPrice(entry)}` : (
                       <span
@@ -166,9 +184,11 @@ export default async function WatchlistPage() {
                   <td className="align-top text-[12px] text-muted-foreground">
                     {formatPT(r.addedAt)}
                   </td>
-                  <td className="align-top">
-                    <WatchlistButton symbol={r.symbol} initiallyWatched />
-                  </td>
+                  {canWrite ? (
+                    <td className="align-top">
+                      <WatchlistButton symbol={r.symbol} initiallyWatched />
+                    </td>
+                  ) : null}
                 </tr>
               );
             })}

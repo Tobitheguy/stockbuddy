@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { and, desc, eq, sql } from "drizzle-orm";
+import { viewer } from "@/auth/viewer";
 import { db } from "@/db/client";
 import { items, signals, sources, tickers, watchlist } from "@/db/schema";
 import { DirectionBadge } from "@/components/direction-badge";
@@ -95,7 +96,13 @@ function feedHref(filters: FeedFilters, patch: Partial<FeedFilters>): string {
  * finds is a control that does not exist — this one sits where the eye enters
  * the table.
  */
-function FeedControls({ filters }: { filters: FeedFilters }) {
+function FeedControls({
+  filters,
+  seesPositions,
+}: {
+  filters: FeedFilters;
+  seesPositions: boolean;
+}) {
   const pill = (active: boolean) =>
     "rounded-md px-3 py-1.5 text-[13px] transition-colors " +
     "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring " +
@@ -141,13 +148,15 @@ function FeedControls({ filters }: { filters: FeedFilters }) {
         </Link>
       </div>
 
-      <Link
-        href={feedHref(filters, { held: !filters.held })}
-        aria-pressed={filters.held}
-        className={pill(filters.held)}
-      >
-        My positions only
-      </Link>
+      {seesPositions ? (
+        <Link
+          href={feedHref(filters, { held: !filters.held })}
+          aria-pressed={filters.held}
+          className={pill(filters.held)}
+        >
+          My positions only
+        </Link>
+      ) : null}
     </div>
   );
 }
@@ -156,10 +165,15 @@ export default async function SignalsPage(props: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params = await props.searchParams;
+  const { canWrite, seesPositions } = await viewer();
+
   const sort: FeedSort = params.sort === "newest" ? "newest" : "top";
   const dir: FeedDir =
     params.dir === "bullish" || params.dir === "bearish" ? params.dir : "all";
-  const held = params.held === "1";
+  // `?held=1` filters the feed down to held symbols, which answers "what does
+  // he own" just as directly as the hidden column would. Hiding the pill is
+  // not enough — the parameter has to stop working too.
+  const held = params.held === "1" && seesPositions;
   const filters: FeedFilters = { sort, dir, held };
 
   let rows: Awaited<ReturnType<typeof loadSignals>>;
@@ -202,7 +216,9 @@ export default async function SignalsPage(props: {
     return (
       <>
         <PageTitle title="Signals" />
-        {filtered ? <FeedControls filters={filters} /> : null}
+        {filtered ? (
+          <FeedControls filters={filters} seesPositions={seesPositions} />
+        ) : null}
         <StatePanel
           title={filtered ? "Nothing matches these filters" : "No signals yet"}
           body={
@@ -241,7 +257,7 @@ export default async function SignalsPage(props: {
         }
       />
 
-      <FeedControls filters={filters} />
+      <FeedControls filters={filters} seesPositions={seesPositions} />
       <ScoreLegend />
 
       {allRuleScored ? (
@@ -280,10 +296,12 @@ export default async function SignalsPage(props: {
                 <td className="whitespace-nowrap align-top">
                   {row.symbol ? (
                     <span className="flex items-center gap-1.5">
-                      <WatchlistButton
-                        symbol={row.symbol}
-                        initiallyWatched={watched.has(row.symbol)}
-                      />
+                      {canWrite ? (
+                        <WatchlistButton
+                          symbol={row.symbol}
+                          initiallyWatched={watched.has(row.symbol)}
+                        />
+                      ) : null}
                       <Link
                         href={`/t/${row.symbol}`}
                         className="num font-medium hover:underline"

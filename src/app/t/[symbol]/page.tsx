@@ -1,5 +1,6 @@
 import { desc, eq, sql } from "drizzle-orm";
 import { notFound } from "next/navigation";
+import { viewer } from "@/auth/viewer";
 import { db } from "@/db/client";
 import { items, signals, sources, tickers, watchlist } from "@/db/schema";
 import { PageTitle, StatePanel, TableScroller } from "@/components/page-shell";
@@ -22,6 +23,7 @@ import { formatAge, formatPT, formatPrice, formatReturn } from "@/lib/format";
 export const dynamic = "force-dynamic";
 
 export default async function TickerPage({ params }: PageProps<"/t/[symbol]">) {
+  const { canWrite } = await viewer();
   const { symbol: raw } = await params;
   const symbol = raw.toUpperCase();
 
@@ -122,11 +124,13 @@ export default async function TickerPage({ params }: PageProps<"/t/[symbol]">) {
         title={symbol}
         subtitle={ticker.name}
         actions={
-          <WatchlistButton
-            symbol={symbol}
-            initiallyWatched={Boolean(watched)}
-            size="lg"
-          />
+          canWrite ? (
+            <WatchlistButton
+              symbol={symbol}
+              initiallyWatched={Boolean(watched)}
+              size="lg"
+            />
+          ) : null
         }
       />
 

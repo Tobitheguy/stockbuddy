@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { viewer } from "@/auth/viewer";
 import { AppHeader } from "@/components/app-header";
 
 const geistSans = Geist({
@@ -21,14 +22,16 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const v = await viewer();
+
   return (
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <AppHeader />
+        <AppHeader signedIn={v.signedIn} isPublicVisitor={v.isPublicVisitor} />
         <main className="mx-auto w-full max-w-[1280px] flex-1 px-4 py-4">
           {children}
         </main>

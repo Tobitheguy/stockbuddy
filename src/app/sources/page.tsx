@@ -3,6 +3,7 @@ import { db } from "@/db/client";
 import { scanRuns, sources } from "@/db/schema";
 import { PageTitle, StatePanel, TableScroller } from "@/components/page-shell";
 import { formatAge, formatPT } from "@/lib/format";
+import { redactEmails } from "@/lib/redact";
 
 /**
  * Live source health.
@@ -146,7 +147,7 @@ export default async function SourcesPage() {
                   <div className="font-medium">{r.name}</div>
                   {r.lastError ? (
                     <div className="mt-0.5 max-w-[520px] text-[12px] text-bearish">
-                      {r.lastError.slice(0, 180)}
+                      {redactEmails(r.lastError).slice(0, 180)}
                       {r.errorStreak > 1 ? (
                         <span className="text-muted-foreground">
                           {" "}

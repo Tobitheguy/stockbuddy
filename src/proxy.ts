@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { publicReadOnly } from "@/auth/public-mode";
 import { SESSION_COOKIE, verifySession } from "@/auth/session";
 
 /**
@@ -13,9 +14,19 @@ import { SESSION_COOKIE, verifySession } from "@/auth/session";
  * `/api/*` is excluded here because those routes authenticate differently:
  * they are called by cron with a CRON_SECRET bearer token, not by a browser
  * holding a cookie. They enforce that themselves.
+ *
+ * PUBLIC_READ_ONLY relaxes this for GET and HEAD only. Server Actions are
+ * POSTs to the page path — they pass through this same matcher — so gating on
+ * the method is what keeps "anyone may look" from becoming "anyone may edit".
+ * That is also why an unauthenticated write gets a flat 403 rather than the
+ * redirect a browser navigation gets: an action is not a navigation, and
+ * answering it with a login page would have it parsed as a result.
  */
 
 const PUBLIC_PATHS = new Set(["/login"]);
+
+/** Methods that cannot change anything, per RFC 9110. */
+const READ_METHODS = new Set(["GET", "HEAD"]);
 
 export default async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
@@ -24,6 +35,13 @@ export default async function proxy(request: NextRequest) {
 
   if (await verifySession(request.cookies.get(SESSION_COOKIE)?.value)) {
     return NextResponse.next();
+  }
+
+  if (publicReadOnly()) {
+    if (READ_METHODS.has(request.method)) return NextResponse.next();
+    return new NextResponse("Read-only: sign in to change anything.", {
+      status: 403,
+    });
   }
 
   const login = new URL("/login", request.url);

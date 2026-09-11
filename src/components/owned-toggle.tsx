@@ -15,12 +15,35 @@ import { cn } from "@/lib/utils";
 export function OwnedToggle({
   symbol,
   initiallyOwned,
+  readOnly = false,
 }: {
   symbol: string;
   initiallyOwned: boolean;
+  readOnly?: boolean;
 }) {
   const [owned, setOwnedState] = useState(initiallyOwned);
   const [pending, startTransition] = useTransition();
+
+  const label = owned ? "Owned" : "Watching";
+  const tone = owned
+    ? "bg-bullish/10 text-bullish"
+    : "bg-surface text-muted-foreground";
+
+  // A disabled button still reads as something you could press if you tried
+  // harder. Without write access this is not a control at all, so it renders
+  // as what it actually is: a label.
+  if (readOnly) {
+    return (
+      <span
+        className={cn(
+          "inline-block rounded-md px-2 py-0.5 text-[11px] font-medium",
+          tone,
+        )}
+      >
+        {label}
+      </span>
+    );
+  }
 
   return (
     <button
@@ -48,7 +71,7 @@ export function OwnedToggle({
           : "bg-surface text-muted-foreground hover:bg-surface-raised hover:text-foreground",
       )}
     >
-      {owned ? "Owned" : "Watching"}
+      {label}
     </button>
   );
 }

@@ -19,13 +19,19 @@ function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function AppHeader() {
+export function AppHeader({
+  signedIn,
+  isPublicVisitor,
+}: {
+  signedIn: boolean;
+  isPublicVisitor: boolean;
+}) {
   const pathname = usePathname();
 
   // On the login page there is nothing to navigate to and nothing to sign out
   // of. Rendering the nav there would show links that all bounce straight back
   // to this page.
-  const authenticated = pathname !== "/login";
+  const onLogin = pathname === "/login";
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-card/90 backdrop-blur-sm">
@@ -48,7 +54,7 @@ export function AppHeader() {
           aria-label="Primary"
           className="flex min-w-0 items-center gap-1 overflow-x-auto"
         >
-          {(authenticated ? NAV : []).map((item) => {
+          {(onLogin ? [] : NAV).map((item) => {
             const active = isActive(pathname, item.href);
             return (
               <Link
@@ -70,10 +76,20 @@ export function AppHeader() {
         </nav>
 
         <div className="ml-auto flex items-center gap-3 text-[11px] text-muted-foreground">
+          {/* Says up front why every control is missing, so a visitor reads the
+              page as read-only by design rather than as half-broken. */}
+          {isPublicVisitor ? (
+            <span
+              className="shrink-0 rounded-md bg-surface-raised px-2 py-0.5 font-medium text-foreground"
+              title="Anyone can read this deployment. Nothing here can be changed without signing in."
+            >
+              Read-only
+            </span>
+          ) : null}
           {/* Standing reminder of what this tool is. It is deliberately part of
               the chrome rather than a dismissible banner. */}
           <span className="hidden sm:inline">Research only — not advice</span>
-          {authenticated ? (
+          {signedIn && !onLogin ? (
             <form action={logout}>
               <button
                 type="submit"
