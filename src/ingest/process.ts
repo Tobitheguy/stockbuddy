@@ -147,6 +147,24 @@ export async function runProcess(
                 and (${items.title} ilike '%' || w.symbol || '%'
                      or ${items.summary} ilike '%' || w.symbol || '%')
             ) then 0
+            /* Form 4 is checked BEFORE the edgar tier, because it is edgar and
+               would otherwise inherit tier 1.
+
+               It is 59% of everything ingested — 5,688 filings in three days
+               against 592 8-Ks — and it scores about a fifth as high. Sharing
+               the top tier with 8-K, ten times the volume at a fifth of the
+               value, meant routine insider paperwork set the agenda for the
+               whole feed and ate the budget before the filings that actually
+               reprice a company were reached.
+
+               It is not dropped: an unscheduled open-market purchase by an
+               executive is one of the few genuinely informative insider
+               signals. It simply goes last. Note that prefilter.ts cannot help
+               here — ROUTINE_INSIDER_RE is inert on live data, because EDGAR's
+               Atom title carries no transaction codes, so every Form 4 reaches
+               this queue regardless of how routine it is. Until the filing XML
+               is fetched, ordering is the only lever. */
+            when ${sources.name} ~* 'form 4' then 4
             /* Primary documents: the filer's own words, legally required,
                and the only tier where magnitude 5 realistically lives. */
             when ${sources.kind} = 'edgar' then 1
