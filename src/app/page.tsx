@@ -2,7 +2,7 @@ import Link from "next/link";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { viewer } from "@/auth/viewer";
 import { db } from "@/db/client";
-import { items, signals, sources, tickers, watchlist } from "@/db/schema";
+import { items, scanRuns, signals, sources, tickers, watchlist } from "@/db/schema";
 import { DirectionBadge } from "@/components/direction-badge";
 import { ScoreLegend } from "@/components/score-legend";
 import { SignalScore } from "@/components/signal-score";
@@ -75,6 +75,36 @@ async function loadSignals({ sort, dir, held }: FeedFilters) {
         : [desc(liveScore()), desc(items.publishedAt)]),
     )
     .limit(PAGE_SIZE);
+}
+
+/**
+ * The reason scoring is currently degraded, or null when it is healthy.
+ *
+ * This exists because the failure it catches is invisible from everywhere
+ * else. When the model becomes unusable — exhausted credit, a revoked key —
+ * ingestion carries on, runs keep succeeding, items keep arriving, and every
+ * new item quietly falls back to rule-based scoring. Nothing turns red. The
+ * only symptom is that the feed stops gaining anything with a direction on it,
+ * which reads as a quiet news day until you compare timestamps.
+ *
+ * It happened for two days before anyone noticed. The reason was sitting in
+ * scan_runs.error the whole time, written on every run, read by nobody.
+ *
+ * Deliberately keyed to the most recent run rather than to a count of
+ * rule-scored rows: a bad key is a fact about right now, and the moment a run
+ * succeeds the banner should disappear on its own without a backlog of
+ * fallback rows keeping it lit.
+ */
+async function latestScoringFault(): Promise<string | null> {
+  const [run] = await db()
+    .select({ error: scanRuns.error, startedAt: scanRuns.startedAt })
+    .from(scanRuns)
+    .where(eq(scanRuns.kind, "process"))
+    .orderBy(desc(scanRuns.startedAt))
+    .limit(1);
+
+  if (!run?.error) return null;
+  return `${run.error} (last attempt ${formatAge(run.startedAt)} ago)`;
 }
 
 /** Build a feed URL that changes one filter and keeps the rest. */
@@ -179,6 +209,7 @@ export default async function SignalsPage(props: {
   let rows: Awaited<ReturnType<typeof loadSignals>>;
   let totals = { signals: 0, ruleScored: 0 };
   let watched = new Set<string>();
+  let scoringFault: string | null = null;
 
   try {
     rows = await loadSignals(filters);
@@ -189,6 +220,7 @@ export default async function SignalsPage(props: {
       })
       .from(signals);
     totals = { signals: counts[0]?.total ?? 0, ruleScored: counts[0]?.rules ?? 0 };
+    scoringFault = await latestScoringFault();
     watched = new Set(
       (await db().select({ symbol: watchlist.symbol }).from(watchlist)).map(
         (r) => r.symbol,
@@ -259,6 +291,22 @@ export default async function SignalsPage(props: {
 
       <FeedControls filters={filters} seesPositions={seesPositions} />
       <ScoreLegend />
+
+      {scoringFault ? (
+        <StatePanel
+          className="mb-4"
+          tone="error"
+          title="Scoring is degraded — new rows are rule-based only"
+          body={
+            <>
+              The last processing run could not reach the model, so anything
+              arriving since then has been ranked by rules alone and carries no
+              direction. Ingestion is unaffected; the feed is still current, it
+              is just not being read. <strong>{scoringFault}</strong>
+            </>
+          }
+        />
+      ) : null}
 
       {allRuleScored ? (
         <StatePanel
