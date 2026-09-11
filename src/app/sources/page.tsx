@@ -1,4 +1,4 @@
-import { desc, sql } from "drizzle-orm";
+import { and, desc, eq, isNotNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { scanRuns, sources } from "@/db/schema";
 import { PageTitle, StatePanel, TableScroller } from "@/components/page-shell";
@@ -71,6 +71,22 @@ export default async function SourcesPage() {
         itemsNew: scanRuns.itemsNew,
       })
       .from(scanRuns)
+      /*
+       * The most recent FINISHED run of kind 'scan', specifically. Both
+       * filters fix a header that regularly claimed the scanner was dead.
+       *
+       * Without the kind filter it took whatever ran last, which is usually a
+       * 'process' run — those never touch a source, so sources_ok and
+       * sources_failed are 0 by construction while items_new is populated.
+       * The page rendered that as "0 ok, 0 failed, 82 new items".
+       *
+       * Without the finished_at filter it read runs still in flight, whose
+       * counters are all still 0. A scan takes about a minute of every ten,
+       * so roughly one page load in ten showed "0 ok, 0 failed, 0 new items"
+       * on a scanner that was working perfectly — the worst possible moment
+       * being a first impression.
+       */
+      .where(and(eq(scanRuns.kind, "scan"), isNotNull(scanRuns.finishedAt)))
       .orderBy(desc(scanRuns.startedAt))
       .limit(1);
     lastRun = runs[0] ?? null;
