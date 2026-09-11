@@ -81,8 +81,25 @@ async function fetchSource(source: Source) {
 }
 
 /**
+ * How long a source with `n` consecutive failures must wait before the next
+ * attempt: its own interval, doubled once per failure, capped at six hours.
+ *
+ * `error_streak` was being written on every failure and read by nothing, so a
+ * feed that had been unreachable for days was still retried on its normal
+ * interval forever. Three dead GlobeNewswire feeds on a 60-second interval
+ * cost three 20-second timeouts on every single scan — most of the run's
+ * wall-clock, spent on hosts that had not answered in 600 consecutive tries.
+ *
+ * The cap matters as much as the growth. Without it, a feed that breaks for a
+ * week backs off past the point of ever being retried, and a source that comes
+ * back stays dark until someone notices by hand. Six hours means a recovered
+ * feed rejoins the same day on its own.
+ */
+const MAX_BACKOFF_SEC = 6 * 60 * 60;
+
+/**
  * Sources due for a poll: enabled, and either never fetched or last fetched
- * longer ago than their interval.
+ * longer ago than their interval — extended by the failure backoff above.
  */
 async function dueSources(force: boolean): Promise<Source[]> {
   const database = db();
@@ -97,7 +114,16 @@ async function dueSources(force: boolean): Promise<Source[]> {
         eq(sources.enabled, true),
         or(
           sql`${sources.lastFetchedAt} is null`,
-          sql`${sources.lastFetchedAt} < now() - make_interval(secs => ${sources.pollIntervalSec})`,
+          /*
+           * The exponent is capped at 10 before the multiply, not after. The
+           * cap on the result would be reached either way, but 2^600 as a
+           * double times a 3600-second interval overflows int4 on the way
+           * there, and Postgres raises rather than saturating.
+           */
+          sql`${sources.lastFetchedAt} < now() - make_interval(secs => least(
+                ${sources.pollIntervalSec} * power(2, least(${sources.errorStreak}, 10))::int,
+                ${MAX_BACKOFF_SEC}
+              ))`,
         ),
       ),
     );
