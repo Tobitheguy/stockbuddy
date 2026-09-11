@@ -186,39 +186,61 @@ export const SEED_SOURCES: SeedSource[] = [
   // ==========================================================================
   // Press release wires — where company news originates.
   // ==========================================================================
+  /*
+   * All three GlobeNewswire feeds are blocked, not broken.
+   *
+   * They answered exactly once — the first scan on 2026-09-07, about 20 items
+   * each — and then failed 600 consecutive times with a connect timeout. The
+   * whole host is unreachable now, homepage included, from more than one
+   * network, so this is GlobeNewswire refusing us rather than a bad feed URL.
+   *
+   * The 60-second interval below is the likely reason, and is left in place as
+   * the evidence: three feeds polled every minute from one address is a
+   * plausible thing for a wire service to start dropping. Anyone re-enabling
+   * these should raise the interval to 15 minutes FIRST and verify from the
+   * deployment's own network, not a laptop.
+   *
+   * Disabled rather than deleted because the seed is the record of what was
+   * tried. `verified: "blocked"` is the honest state and is what keeps them
+   * out of the enabled set — see the test asserting every enabled source is
+   * "live". Business Wire and PR Newswire below are the intended
+   * replacements; both are still unverified.
+   */
   {
     name: "GlobeNewswire - Public Companies",
     kind: "rss",
     url: "https://www.globenewswire.com/RssFeed/orgclass/1/feedTitle/GlobeNewswire%20-%20News%20about%20Public%20Companies",
-    enabled: true,
+    enabled: false,
     pollIntervalSec: 60,
     qualityWeight: 0.9,
     storeBody: true,
-    verified: "live",
+    verified: "blocked",
     notes:
-      "Carries non-English releases (Nordic issuers). Triage drops non-US-listed.",
+      "Blocked since 2026-09-07 after ~600 consecutive connect timeouts. Carries non-English releases (Nordic issuers). Triage drops non-US-listed.",
   },
   {
     name: "GlobeNewswire - Earnings Releases",
     kind: "rss",
     url: "https://www.globenewswire.com/RssFeed/subjectcode/13-Earnings%20Releases%20and%20Operating%20Results",
-    enabled: true,
+    enabled: false,
     pollIntervalSec: 60,
     qualityWeight: 0.9,
     storeBody: true,
-    verified: "live",
-    notes: "Subject-filtered subset; overlaps the public-companies feed.",
+    verified: "blocked",
+    notes:
+      "Blocked since 2026-09-07. Subject-filtered subset; overlaps the public-companies feed.",
   },
   {
     name: "GlobeNewswire - M&A",
     kind: "rss",
     url: "https://www.globenewswire.com/RssFeed/subjectcode/27-Mergers%20and%20Acquisitions",
-    enabled: true,
+    enabled: false,
     pollIntervalSec: 60,
     qualityWeight: 0.9,
     storeBody: true,
-    verified: "live",
-    notes: "Subject-filtered subset; overlaps the public-companies feed.",
+    verified: "blocked",
+    notes:
+      "Blocked since 2026-09-07. Subject-filtered subset; overlaps the public-companies feed.",
   },
   {
     name: "Business Wire - Public Companies",
